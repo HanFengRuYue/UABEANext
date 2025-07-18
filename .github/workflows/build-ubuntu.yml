@@ -24,14 +24,51 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
 
-    - name: Build
+    - name: Build solution
       run: dotnet build --configuration Release --no-restore
 
-    - name: Publish
-      run: dotnet publish UABEANext4.Desktop/UABEANext4.Desktop.csproj --configuration Release --no-build --output ./publish
+    - name: Publish main application
+      run: dotnet publish UABEANext4.Desktop/UABEANext4.Desktop.csproj --configuration Release --no-build --output ./publish --runtime linux-x64 --self-contained false
+
+    - name: Copy native libraries
+      run: |
+        mkdir -p ./publish/runtimes/linux-x64/native
+        cp -r NativeLibs/linux-x64/* ./publish/runtimes/linux-x64/native/
+
+    - name: Copy plugins and dependencies
+      run: |
+        # Ensure plugins directory exists
+        mkdir -p ./publish/plugins
+        
+        # Copy all plugin DLLs
+        cp AudioPlugin/bin/Release/net8.0/AudioPlugin.dll ./publish/plugins/
+        cp FontPlugin/bin/Release/net8.0/FontPlugin.dll ./publish/plugins/
+        cp MeshPlugin/bin/Release/net8.0/MeshPlugin.dll ./publish/plugins/
+        cp TextAssetPlugin/bin/Release/net8.0/TextAssetPlugin.dll ./publish/plugins/
+        cp TexturePlugin/bin/Release/net8.0/TexturePlugin.dll ./publish/plugins/
+        
+        # Copy plugin dependencies from Libs folder
+        cp Libs/AssetsTools.NET.Texture.dll ./publish/plugins/
+        
+        # Copy audio plugin dependencies if they exist
+        if [ -f "AudioPlugin/bin/Release/net8.0/Fmod5Sharp.dll" ]; then
+          cp AudioPlugin/bin/Release/net8.0/Fmod5Sharp.dll ./publish/plugins/
+        fi
+        if [ -f "AudioPlugin/bin/Release/net8.0/NAudio.Core.dll" ]; then
+          cp AudioPlugin/bin/Release/net8.0/NAudio.Core.dll ./publish/plugins/
+        fi
+        if [ -f "AudioPlugin/bin/Release/net8.0/OggVorbisEncoder.dll" ]; then
+          cp AudioPlugin/bin/Release/net8.0/OggVorbisEncoder.dll ./publish/plugins/
+        fi
+        
+        # Copy ReleaseFiles
+        cp -r ReleaseFiles/* ./publish/
 
     - name: Remove unused platforms
-      run: find ./publish/runtimes/* -maxdepth 0 ! -name linux-x64 -type d -exec rm -rf {} + 2>/dev/null || true
+      run: |
+        if [ -d "./publish/runtimes" ]; then
+          find ./publish/runtimes/* -maxdepth 0 ! -name linux-x64 -type d -exec rm -rf {} + 2>/dev/null || true
+        fi
       
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
