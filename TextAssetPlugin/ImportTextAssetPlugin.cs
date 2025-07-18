@@ -8,8 +8,8 @@ using UABEANext4.ViewModels.Dialogs;
 namespace TextAssetPlugin;
 public class ImportTextAssetPlugin : IUavPluginOption
 {
-    public string Name => "Import TextAsset";
-    public string Description => "Imports TextAssets to txt";
+    public string Name => "导入文本资源";
+    public string Description => "将txt文件导入为文本资源";
     public UavPluginMode Options => UavPluginMode.Import;
 
     public bool SupportsSelection(Workspace workspace, UavPluginMode mode, IList<AssetInst> selection)
@@ -39,7 +39,7 @@ public class ImportTextAssetPlugin : IUavPluginOption
     {
         var dir = await funcs.ShowOpenFolderDialog(new FolderPickerOpenOptions()
         {
-            Title = "Select import directory"
+            Title = "选择导入目录"
         });
 
         if (dir == null)
@@ -51,7 +51,7 @@ public class ImportTextAssetPlugin : IUavPluginOption
         var batchInfosViewModel = new BatchImportViewModel(workspace, selection.ToList(), dir, extensions);
         if (batchInfosViewModel.DataGridItems.Count == 0)
         {
-            await funcs.ShowMessageDialog("Error", "No matching files found in the directory. Make sure the file names are in UABEA's format.");
+            await funcs.ShowMessageDialog("错误", "在目录中未找到匹配的文件。请确保文件名符合UABEA格式。");
             return false;
         }
 
@@ -90,7 +90,7 @@ public class ImportTextAssetPlugin : IUavPluginOption
         {
             string[] firstLines = errorBuilder.ToString().Split('\n').Take(20).ToArray();
             string firstLinesStr = string.Join('\n', firstLines);
-            await funcs.ShowMessageDialog("Error", firstLinesStr);
+            await funcs.ShowMessageDialog("错误", firstLinesStr);
         }
 
         return true;
@@ -100,12 +100,12 @@ public class ImportTextAssetPlugin : IUavPluginOption
     {
         var filePaths = await funcs.ShowOpenFileDialog(new FilePickerOpenOptions()
         {
-            Title = "Load text asset",
+            Title = "加载文本资源",
             FileTypeFilter = new List<FilePickerFileType>()
             {
-                new("TXT file (*.txt)") { Patterns = ["*.txt"] },
-                new("BYTES file (*.bytes)") { Patterns = ["*.bytes"] },
-                new("All types (*.*)") { Patterns = ["*"] },
+                new("TXT文件 (*.txt)") { Patterns = ["*.txt"] },
+                new("BYTES文件 (*.bytes)") { Patterns = ["*.bytes"] },
+                new("所有类型 (*.*)") { Patterns = ["*"] },
             },
             AllowMultiple = false
         });
@@ -118,7 +118,7 @@ public class ImportTextAssetPlugin : IUavPluginOption
         var filePath = filePaths[0];
         if (!File.Exists(filePath))
         {
-            await funcs.ShowMessageDialog("Error", $"Failed to import because {filePath ?? "[null]"} does not exist.");
+            await funcs.ShowMessageDialog("错误", $"导入失败，因为文件 {filePath ?? "[null]"} 不存在。");
             return false;
         }
 
@@ -126,7 +126,7 @@ public class ImportTextAssetPlugin : IUavPluginOption
         var baseField = workspace.GetBaseField(asset);
         if (baseField == null)
         {
-            await funcs.ShowMessageDialog("Error", "Failed to read");
+            await funcs.ShowMessageDialog("错误", "读取失败");
             return false;
         }
 

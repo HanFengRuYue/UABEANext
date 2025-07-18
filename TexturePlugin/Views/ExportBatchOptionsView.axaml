@@ -17,8 +17,8 @@
         <ColumnDefinition Width="*"></ColumnDefinition>
         <ColumnDefinition Width="*"></ColumnDefinition>
       </Grid.ColumnDefinitions>
-      <Button Grid.Column="0" Command="{Binding BtnOk_Click}">Ok</Button>
-      <Button Grid.Column="1" Command="{Binding BtnCancel_Click}">Cancel</Button>
+      <Button Grid.Column="0" Command="{Binding BtnOk_Click}">确定</Button>
+      <Button Grid.Column="1" Command="{Binding BtnCancel_Click}">取消</Button>
     </Grid>
   </Grid>
 </UserControl>

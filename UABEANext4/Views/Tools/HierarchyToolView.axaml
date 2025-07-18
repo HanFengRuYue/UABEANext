@@ -21,6 +21,6 @@
         </Style>
       </TreeView.Styles>
     </TreeView>
-    <CheckBox Grid.Row="1" IsChecked="{Binding SortAlphabetically}" IsEnabled="{Binding !IsLoadingNewItems}">Sort root GameObjects alphabetically</CheckBox>
+    <CheckBox Grid.Row="1" IsChecked="{Binding SortAlphabetically}" IsEnabled="{Binding !IsLoadingNewItems}">按字母顺序排序根游戏对象</CheckBox>
   </Grid>
 </UserControl>

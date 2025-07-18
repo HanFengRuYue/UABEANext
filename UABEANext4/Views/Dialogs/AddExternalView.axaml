@@ -11,22 +11,22 @@
     <Grid VerticalAlignment="Top"
           ColumnDefinitions="120, *"
           RowDefinitions="Auto, Auto, Auto, Auto">
-      <Label Grid.Column="0" Grid.Row="0">File name</Label>
+      <Label Grid.Column="0" Grid.Row="0">文件名</Label>
       <TextBox Grid.Column="1" Grid.Row="0"
                Text="{Binding FileName}" />
       
-      <Label Grid.Column="0" Grid.Row="1">Original file name</Label>
+      <Label Grid.Column="0" Grid.Row="1">原始文件名</Label>
       <TextBox Grid.Column="1" Grid.Row="1"
                IsEnabled="{Binding HasOriginalName}"
                Text="{Binding OriginalFileName}" />
       
-      <Label Grid.Column="0" Grid.Row="2">Dependency type</Label>
+      <Label Grid.Column="0" Grid.Row="2">依赖类型</Label>
       <ComboBox Grid.Column="1" Grid.Row="2"
                 SelectedIndex="{Binding ExternalType}">
-        <ComboBoxItem Content="Normal" />
-        <ComboBoxItem Content="Cached" />
-        <ComboBoxItem Content="Serialized" />
-        <ComboBoxItem Content="Meta" />
+        <ComboBoxItem Content="普通" />
+        <ComboBoxItem Content="缓存" />
+        <ComboBoxItem Content="序列化" />
+        <ComboBoxItem Content="元数据" />
       </ComboBox>
       
       <Label Grid.Column="0" Grid.Row="3">GUID</Label>
@@ -39,8 +39,8 @@
         <ColumnDefinition Width="*"></ColumnDefinition>
         <ColumnDefinition Width="*"></ColumnDefinition>
       </Grid.ColumnDefinitions>
-      <Button Grid.Column="0" Command="{Binding BtnOk_Click}">Ok</Button>
-      <Button Grid.Column="1" Command="{Binding BtnCancel_Click}">Cancel</Button>
+      <Button Grid.Column="0" Command="{Binding BtnOk_Click}">确定</Button>
+      <Button Grid.Column="1" Command="{Binding BtnCancel_Click}">取消</Button>
     </Grid>
   </Grid>
 </UserControl>

@@ -13,8 +13,8 @@ namespace TexturePlugin;
 
 public class ExportTextureOption : IUavPluginOption
 {
-    public string Name => "Export Texture2D";
-    public string Description => "Exports Texture2Ds to png/tga/bmp/jpg";
+    public string Name => "导出纹理2D";
+    public string Description => "将Texture2D导出为png/tga/bmp/jpg格式";
     public UavPluginMode Options => UavPluginMode.Export;
 
     public bool SupportsSelection(Workspace workspace, UavPluginMode mode, IList<AssetInst> selection)
@@ -58,7 +58,7 @@ public class ExportTextureOption : IUavPluginOption
 
         var dir = await funcs.ShowOpenFolderDialog(new FolderPickerOpenOptions()
         {
-            Title = "Select export directory"
+            Title = "选择导出目录"
         });
 
         if (dir == null)
@@ -103,7 +103,7 @@ public class ExportTextureOption : IUavPluginOption
 
         if (emptyTextureCount == selection.Count)
         {
-            await funcs.ShowMessageDialog("Error", "All textures are empty. No textures were exported.");
+            await funcs.ShowMessageDialog("错误", "所有纹理都为空。没有纹理被导出。");
             return false;
         }
 
@@ -111,7 +111,7 @@ public class ExportTextureOption : IUavPluginOption
         {
             string[] firstLines = errorBuilder.ToString().Split('\n').Take(20).ToArray();
             string firstLinesStr = string.Join('\n', firstLines);
-            await funcs.ShowMessageDialog("Error", firstLinesStr);
+            await funcs.ShowMessageDialog("错误", firstLinesStr);
         }
 
         return true;
@@ -129,20 +129,20 @@ public class ExportTextureOption : IUavPluginOption
         // 0x0 texture, usually called like Font Texture or something
         if (texFile.m_Width == 0 && texFile.m_Height == 0)
         {
-            await funcs.ShowMessageDialog("Error", "Texture size is 0x0 which is not exportable.");
+            await funcs.ShowMessageDialog("错误", "纹理大小为0x0，无法导出。");
             return false;
         }
 
         string assetName = PathUtils.ReplaceInvalidPathChars(texFile.m_Name);
         var filePath = await funcs.ShowSaveFileDialog(new FilePickerSaveOptions()
         {
-            Title = "Save texture",
+            Title = "保存纹理",
             FileTypeChoices = new List<FilePickerFileType>()
             {
-                new FilePickerFileType("PNG file") { Patterns = new List<string>() { "*.png" } },
-                new FilePickerFileType("BMP file") { Patterns = new List<string>() { "*.bmp" } },
-                new FilePickerFileType("JPG file") { Patterns = new List<string>() { "*.jpg", "*.jpeg" } },
-                new FilePickerFileType("TGA file") { Patterns = new List<string>() { "*.tga" } },
+                new FilePickerFileType("PNG文件") { Patterns = new List<string>() { "*.png" } },
+                new FilePickerFileType("BMP文件") { Patterns = new List<string>() { "*.bmp" } },
+                new FilePickerFileType("JPG文件") { Patterns = new List<string>() { "*.jpg", "*.jpeg" } },
+                new FilePickerFileType("TGA文件") { Patterns = new List<string>() { "*.tga" } },
             },
             SuggestedFileName = AssetNameUtils.GetAssetFileName(asset, assetName, string.Empty),
             DefaultExtension = "png"

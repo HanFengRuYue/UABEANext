@@ -8,8 +8,8 @@ using UABEANext4.Util;
 namespace TextAssetPlugin;
 public class ExportTextAssetPlugin : IUavPluginOption
 {
-    public string Name => "Export TextAsset";
-    public string Description => "Exports TextAssets to txt";
+    public string Name => "导出文本资源";
+    public string Description => "将文本资源导出为txt文件";
     public UavPluginMode Options => UavPluginMode.Export;
 
     public bool SupportsSelection(Workspace workspace, UavPluginMode mode, IList<AssetInst> selection)
@@ -39,7 +39,7 @@ public class ExportTextAssetPlugin : IUavPluginOption
     {
         var dir = await funcs.ShowOpenFolderDialog(new FolderPickerOpenOptions()
         {
-            Title = "Select export directory"
+            Title = "选择导出目录"
         });
 
         if (dir == null)
@@ -71,7 +71,7 @@ public class ExportTextAssetPlugin : IUavPluginOption
         {
             string[] firstLines = errorBuilder.ToString().Split('\n').Take(20).ToArray();
             string firstLinesStr = string.Join('\n', firstLines);
-            await funcs.ShowMessageDialog("Error", firstLinesStr);
+            await funcs.ShowMessageDialog("错误", firstLinesStr);
         }
 
         return true;
@@ -83,7 +83,7 @@ public class ExportTextAssetPlugin : IUavPluginOption
         var textBaseField = workspace.GetBaseField(asset);
         if (textBaseField == null)
         {
-            await funcs.ShowMessageDialog("Error", "Failed to read");
+            await funcs.ShowMessageDialog("错误", "读取失败");
             return false;
         }
 
@@ -93,12 +93,12 @@ public class ExportTextAssetPlugin : IUavPluginOption
         string assetName = PathUtils.ReplaceInvalidPathChars(name);
         var filePath = await funcs.ShowSaveFileDialog(new FilePickerSaveOptions()
         {
-            Title = "Save text asset",
+            Title = "保存文本资源",
             FileTypeChoices = new List<FilePickerFileType>()
             {
-                new("TXT file (*.txt)") { Patterns = ["*.txt"] },
-                new("BYTES file (*.bytes)") { Patterns = ["*.bytes"] },
-                new("All types (*.*)") { Patterns = ["*"] },
+                new("TXT文件 (*.txt)") { Patterns = ["*.txt"] },
+                new("BYTES文件 (*.bytes)") { Patterns = ["*.bytes"] },
+                new("所有类型 (*.*)") { Patterns = ["*"] },
             },
             SuggestedFileName = AssetNameUtils.GetAssetFileName(asset, assetName, string.Empty),
             DefaultExtension = "txt"

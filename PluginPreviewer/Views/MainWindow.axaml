@@ -7,6 +7,6 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="PluginPreviewer.Views.MainWindow"
         Icon="/Assets/avalonia-logo.ico"
-        Title="PluginPreviewer">
+        Title="插件预览器">
         <views:MainView />
 </Window>

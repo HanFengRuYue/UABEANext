@@ -8,13 +8,13 @@
              x:DataType="dlg:VersionSelectViewModel">
   <Grid Margin="10,10,10,10">
     <Grid VerticalAlignment="Top" ColumnDefinitions="100,*" RowDefinitions="60,Auto">
-      <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" TextWrapping="WrapWithOverflow">This bundle has a double stripped version. Please provide the engine version for this file. Cancelling this dialog may cause some functionality to fail.</TextBlock>
-      <Label Grid.Column="0" Grid.Row="1">Engine Version</Label>
+      <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" TextWrapping="WrapWithOverflow">此捆绑包具有双重剥离版本。请为此文件提供引擎版本。取消此对话框可能会导致某些功能失败。</TextBlock>
+      <Label Grid.Column="0" Grid.Row="1">引擎版本</Label>
       <TextBox Name="defaultBox" Grid.Column="1" Grid.Row="1">0.0.0f0</TextBox>
     </Grid>
     <Grid VerticalAlignment="Bottom" ColumnDefinitions="*,*">
-      <Button Grid.Column="0" Command="{Binding BtnOk_Click}">Ok</Button>
-      <Button Grid.Column="1" Command="{Binding BtnCancel_Click}">Cancel</Button>
+      <Button Grid.Column="0" Command="{Binding BtnOk_Click}">确定</Button>
+      <Button Grid.Column="1" Command="{Binding BtnCancel_Click}">取消</Button>
     </Grid>
   </Grid>
 </UserControl>

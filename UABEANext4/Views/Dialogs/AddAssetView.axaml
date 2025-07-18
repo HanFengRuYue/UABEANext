@@ -14,15 +14,15 @@
     <Grid VerticalAlignment="Top"
           ColumnDefinitions="100, *"
           RowDefinitions="Auto, Auto, Auto, Auto">
-      <Label Grid.Column="0" Grid.Row="0">File</Label>
+      <Label Grid.Column="0" Grid.Row="0">文件</Label>
       <ComboBox Grid.Column="1" Grid.Row="0"
                 ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}"
                 DisplayMemberBinding="{Binding Path=., Converter={StaticResource AssetsFileInstanceNameConverter}}" />
-      <Label Grid.Column="0" Grid.Row="1">Path ID</Label>
+      <Label Grid.Column="0" Grid.Row="1">路径ID</Label>
       <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding PathIdString}" />
-      <Label Grid.Column="0" Grid.Row="2">Type name/ID</Label>
+      <Label Grid.Column="0" Grid.Row="2">类型名称/ID</Label>
       <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding TypeNameOrId}" />
-      <Label Grid.Column="0" Grid.Row="3">Script</Label>
+      <Label Grid.Column="0" Grid.Row="3">脚本</Label>
       <ComboBox Grid.Column="1" Grid.Row="3"
                 IsEnabled="{Binding IsScript}" ItemsSource="{Binding Scripts}"
                 SelectedIndex="{Binding SelectedScriptIndex}" />
@@ -32,8 +32,8 @@
         <ColumnDefinition Width="*"></ColumnDefinition>
         <ColumnDefinition Width="*"></ColumnDefinition>
       </Grid.ColumnDefinitions>
-      <Button Grid.Column="0" Command="{Binding BtnOk_Click}">Ok</Button>
-      <Button Grid.Column="1" Command="{Binding BtnCancel_Click}">Cancel</Button>
+      <Button Grid.Column="0" Command="{Binding BtnOk_Click}">确定</Button>
+      <Button Grid.Column="1" Command="{Binding BtnCancel_Click}">取消</Button>
     </Grid>
   </Grid>
 </UserControl>

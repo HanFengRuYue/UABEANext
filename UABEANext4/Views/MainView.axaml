@@ -14,20 +14,20 @@
   </Design.DataContext>
   <Grid RowDefinitions="Auto,*,22" Margin="4">
     <Menu Grid.Row="0" Padding="0,6">
-      <MenuItem Header="File">
-        <MenuItem Header="Open" Command="{Binding FileOpen}" />
-        <MenuItem Header="Save" Command="{Binding FileSave}" />
-        <MenuItem Header="Save As..." Command="{Binding FileSaveAs}" />
-        <!--<MenuItem Header="Save All" />-->
-        <!--<MenuItem Header="Save All As..." Command="{Binding FileSaveAllAs}" />-->
-        <MenuItem Header="Close All" Command="{Binding FileCloseAll}" />
+      <MenuItem Header="文件">
+        <MenuItem Header="打开" Command="{Binding FileOpen}" />
+        <MenuItem Header="保存" Command="{Binding FileSave}" />
+        <MenuItem Header="另存为..." Command="{Binding FileSaveAs}" />
+        <!--<MenuItem Header="保存全部" />-->
+        <!--<MenuItem Header="全部另存为..." Command="{Binding FileSaveAllAs}" />-->
+        <MenuItem Header="关闭全部" Command="{Binding FileCloseAll}" />
       </MenuItem>
-      <MenuItem Header="View">
-        <MenuItem Header="Duplicate Tab" Command="{Binding ViewDuplicateTab}" />
+      <MenuItem Header="视图">
+        <MenuItem Header="复制标签页" Command="{Binding ViewDuplicateTab}" />
       </MenuItem>
-      <MenuItem Header="Tools">
-        <MenuItem Header="Asset Info" Command="{Binding ShowAssetInfoDialog}" IsEnabled="{Binding Workspace.RootItems.Count}"/>
-        <MenuItem Header="Generate XRefs" Command="{Binding ToolsXrefs}" />
+      <MenuItem Header="工具">
+        <MenuItem Header="资源信息" Command="{Binding ShowAssetInfoDialog}" IsEnabled="{Binding Workspace.RootItems.Count}"/>
+        <MenuItem Header="生成交叉引用" Command="{Binding ToolsXrefs}" />
       </MenuItem>
     </Menu>
     <DockControl Layout="{Binding Layout}" Margin="4" Grid.Row="1" />

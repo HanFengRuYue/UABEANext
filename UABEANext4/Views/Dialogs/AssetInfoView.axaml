@@ -20,13 +20,13 @@
       <uac:AssetTypeIconConverter x:Key="TypeTreeNodeConverter" />
     </Grid.Resources>
     <TabControl Grid.Row="0">
-      <TabItem Header="General Info">
+      <TabItem Header="基本信息">
         <ScrollViewer>
           <StackPanel Orientation="Vertical" Spacing="10">
-            <HeaderedContentControl Header="Header Info">
+            <HeaderedContentControl Header="头部信息">
               <Grid Margin="5 0 10 0" VerticalAlignment="Stretch" RowDefinitions="*,*,*,*,*"
                     ColumnDefinitions="*,3*">
-                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">Metadata Size</TextBlock>
+                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">元数据大小</TextBlock>
                 <TextBox
                   Text="{Binding GeneralInfo.MetadataSize, FallbackValue=0}"
                   Grid.Row="0"
@@ -34,7 +34,7 @@
                   VerticalAlignment="Center"
                   IsEnabled="false" />
 
-                <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">File Size</TextBlock>
+                <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">文件大小</TextBlock>
                 <TextBox
                   Text="{Binding GeneralInfo.FileSize, FallbackValue=0}"
                   Grid.Row="1"
@@ -42,7 +42,7 @@
                   VerticalAlignment="Center"
                   IsEnabled="false" />
 
-                <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center">Format</TextBlock>
+                <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center">格式</TextBlock>
                 <TextBox
                   Text="{Binding GeneralInfo.Format, FallbackValue=''}"
                   Grid.Row="2"
@@ -50,14 +50,14 @@
                   VerticalAlignment="Center"
                   IsEnabled="false" />
 
-                <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center">First File Offset</TextBlock>
+                <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center">首个文件偏移</TextBlock>
                 <TextBox Text="{Binding GeneralInfo.FirstFileOffset, FallbackValue=0}"
                          Grid.Row="3"
                          Grid.Column="1"
                          VerticalAlignment="Center"
                          IsEnabled="false" />
 
-                <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center">Endianness</TextBlock>
+                <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center">字节序</TextBlock>
                 <TextBox Text="{Binding GeneralInfo.Endianness, FallbackValue=false}"
                          Grid.Row="4"
                          Grid.Column="1"
@@ -65,23 +65,23 @@
                          IsEnabled="false" />
               </Grid>
             </HeaderedContentControl>
-            <HeaderedContentControl Header="Metadata Info">
+            <HeaderedContentControl Header="元数据信息">
               <Grid Margin="5 0 10 0" RowDefinitions="*,*,*,*,*" ColumnDefinitions="*,3*">
-                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">Engine Version</TextBlock>
+                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">引擎版本</TextBlock>
                 <TextBox Text="{Binding GeneralInfo.EngineVersion, FallbackValue=''}"
                          Grid.Row="0"
                          Grid.Column="1"
                          VerticalAlignment="Center"
                          IsEnabled="false" />
 
-                <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">Platform</TextBlock>
+                <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center">平台</TextBlock>
                 <TextBox Text="{Binding GeneralInfo.Platform, FallbackValue=0}"
                          Grid.Row="1"
                          Grid.Column="1"
                          VerticalAlignment="Center"
                          IsEnabled="false" />
 
-                <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center">Type Tree Enabled</TextBlock>
+                <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center">类型树已启用</TextBlock>
                 <TextBox Text="{Binding GeneralInfo.TypeTreeEnabled, FallbackValue=false}"
                          Grid.Row="2"
                          Grid.Column="1"
@@ -93,7 +93,7 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="Type Tree">
+      <TabItem Header="类型树">
         <Grid>
           <Grid.ColumnDefinitions>
             <ColumnDefinition />
@@ -132,12 +132,12 @@
                 <ColumnDefinition Width="80" />
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
-              <Label Grid.Column="0" Grid.Row="0">Type Name</Label>
-              <Label Grid.Column="0" Grid.Row="1">Type ID</Label>
-              <Label Grid.Column="0" Grid.Row="2">Script ID</Label>
-              <Label Grid.Column="0" Grid.Row="3">Type Hash</Label>
-              <Label Grid.Column="0" Grid.Row="4">Script Hash</Label>
-              <Label Grid.Column="0" Grid.Row="6">Aligned</Label>
+              <Label Grid.Column="0" Grid.Row="0">类型名称</Label>
+              <Label Grid.Column="0" Grid.Row="1">类型ID</Label>
+              <Label Grid.Column="0" Grid.Row="2">脚本ID</Label>
+              <Label Grid.Column="0" Grid.Row="3">类型哈希</Label>
+              <Label Grid.Column="0" Grid.Row="4">脚本哈希</Label>
+              <Label Grid.Column="0" Grid.Row="6">对齐</Label>
               <TextBox Grid.Column="1" Grid.Row="0" IsReadOnly="True" Text="{Binding TypeTreeInfo.SelectedTypeName}" />
               <TextBox Grid.Column="1" Grid.Row="1" IsReadOnly="True" Text="{Binding TypeTreeInfo.SelectedTypeId}" />
               <TextBox Grid.Column="1" Grid.Row="2" IsReadOnly="True" Text="{Binding TypeTreeInfo.SelectedScriptId}" />
@@ -149,7 +149,7 @@
         </Grid>
       </TabItem>
 
-      <TabItem Header="Externals">
+      <TabItem Header="外部依赖">
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -164,23 +164,23 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <Button Grid.Column="0" Content="Add" Command="{Binding ExternalsInfo.Add_Click}" />
-            <Button Grid.Column="1" Content="Edit" IsEnabled="{Binding ExternalsInfo.IsAssetSelected}"  Command="{Binding ExternalsInfo.Edit_Click}" />
-            <Button Grid.Column="2" Content="Remove" IsEnabled="{Binding ExternalsInfo.IsAssetSelected}" Command="{Binding ExternalsInfo.Remove_Click}" />
-            <Button Grid.Column="3" Content="Move Up" IsEnabled="{Binding ExternalsInfo.CanSelectedAssetMoveUp}" Command="{Binding ExternalsInfo.MoveUp_Click}" />
-            <Button Grid.Column="4" Content="Move Down" IsEnabled="{Binding ExternalsInfo.CanSelectedAssetMoveDown}" Command="{Binding ExternalsInfo.MoveDown_Click}" />
+            <Button Grid.Column="0" Content="添加" Command="{Binding ExternalsInfo.Add_Click}" />
+            <Button Grid.Column="1" Content="编辑" IsEnabled="{Binding ExternalsInfo.IsAssetSelected}"  Command="{Binding ExternalsInfo.Edit_Click}" />
+            <Button Grid.Column="2" Content="删除" IsEnabled="{Binding ExternalsInfo.IsAssetSelected}" Command="{Binding ExternalsInfo.Remove_Click}" />
+            <Button Grid.Column="3" Content="上移" IsEnabled="{Binding ExternalsInfo.CanSelectedAssetMoveUp}" Command="{Binding ExternalsInfo.MoveUp_Click}" />
+            <Button Grid.Column="4" Content="下移" IsEnabled="{Binding ExternalsInfo.CanSelectedAssetMoveDown}" Command="{Binding ExternalsInfo.MoveDown_Click}" />
           </Grid>
         </Grid>
       </TabItem>
 
-      <TabItem Header="Script Infos">
+      <TabItem Header="脚本信息">
         <ListBox ItemsSource="{Binding ScriptsInfo.ScriptsDisplay}" SelectedItem="{Binding TypeTreeInfo.SelectedType}" />
       </TabItem>
     </TabControl>
     
     <ContentControl Grid.Row="1">
       <StackPanel>
-        <TextBlock>Selected asset</TextBlock>
+        <TextBlock>选中的资源</TextBlock>
         <ComboBox x:Name="SelectedAssetComboBox" SelectedIndex="0" SelectedItem="{Binding SelectedItem}">
           <ComboBox.ItemTemplate>
             <DataTemplate x:DataType="assetWorkspace:WorkspaceItem">
