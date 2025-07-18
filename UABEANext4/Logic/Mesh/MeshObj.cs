@@ -233,38 +233,15 @@ public class MeshObj
 
             if (File.Exists(fixedStreamPath))
             {
-                try
-                {
-                    var fileInfo = new FileInfo(fixedStreamPath);
-                    if (fileInfo.Length < offset + size)
-                    {
-                        throw new InvalidDataException($"File {fixedStreamPath} is too small. Expected size: {offset + size}, actual size: {fileInfo.Length}");
-                    }
-
-                    using var stream = File.OpenRead(fixedStreamPath);
-                    stream.Position = offset;
-                    var data = new byte[size];
-                    var bytesRead = stream.Read(data, 0, (int)size);
-                    
-                    if (bytesRead != size)
-                    {
-                        throw new InvalidDataException($"Could not read expected amount of data from {fixedStreamPath}. Expected: {size}, read: {bytesRead}");
-                    }
-                    
-                    return data;
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    throw new FileNotFoundException($"Access denied to mesh resource file: {fixedStreamPath}");
-                }
-                catch (IOException ex)
-                {
-                    throw new FileNotFoundException($"I/O error reading mesh resource file {fixedStreamPath}: {ex.Message}");
-                }
+                var stream = File.OpenRead(fixedStreamPath);
+                stream.Position = offset;
+                var data = new byte[size];
+                stream.Read(data, 0, (int)size);
+                return data;
             }
             else
             {
-                throw new FileNotFoundException($"Can't find resS for mesh: {fixedStreamPath}");
+                throw new FileNotFoundException("Can't find resS for mesh");
             }
         }
         else

@@ -6,11 +6,10 @@ using System.IO;
 using static System.FormattableString;
 
 namespace UABEANext4.Logic.ImportExport;
-public class AssetExport : IDisposable
+public class AssetExport
 {
     private readonly Stream _stream;
     private readonly StreamWriter _streamWriter;
-    private bool _disposed = false;
 
     public AssetExport(Stream writeStream)
     {
@@ -91,7 +90,7 @@ public class AssetExport : IDisposable
                 AssetValueType evt = field.Value.ValueType;
                 if (evt == AssetValueType.String)
                 {
-                    var fixedStr = AssetTypeHelper.EscapeTextDumpString(field.AsString);
+                    var fixedStr = TextDumpEscapeString(field.AsString);
                     value = $" = \"{fixedStr}\"";
                 }
                 else if (1 <= (int)evt && (int)evt <= 12)
@@ -141,9 +140,9 @@ public class AssetExport : IDisposable
                 var typeRef = refObj.type;
                 _streamWriter.WriteLine(Invariant($"{new string(' ', depth + 1)}0 ReferencedObject {i:d8}"));
                 _streamWriter.WriteLine($"{new string(' ', depth + 2)}0 ReferencedManagedType type");
-                _streamWriter.WriteLine($"{new string(' ', depth + 3)}1 string class = \"{AssetTypeHelper.EscapeTextDumpString(typeRef.ClassName)}\"");
-                _streamWriter.WriteLine($"{new string(' ', depth + 3)}1 string ns = \"{AssetTypeHelper.EscapeTextDumpString(typeRef.Namespace)}\"");
-                _streamWriter.WriteLine($"{new string(' ', depth + 3)}1 string asm = \"{AssetTypeHelper.EscapeTextDumpString(typeRef.AsmName)}\"");
+                _streamWriter.WriteLine($"{new string(' ', depth + 3)}1 string class = \"{TextDumpEscapeString(typeRef.ClassName)}\"");
+                _streamWriter.WriteLine($"{new string(' ', depth + 3)}1 string ns = \"{TextDumpEscapeString(typeRef.Namespace)}\"");
+                _streamWriter.WriteLine($"{new string(' ', depth + 3)}1 string asm = \"{TextDumpEscapeString(typeRef.AsmName)}\"");
                 _streamWriter.WriteLine($"{new string(' ', depth + 2)}0 ReferencedObjectData data");
 
                 foreach (var child in refObj.data.Children)
@@ -165,9 +164,9 @@ public class AssetExport : IDisposable
                 _streamWriter.WriteLine($"{new string(' ', depth + 3)}0 ReferencedObject data");
                 _streamWriter.WriteLine(Invariant($"{new string(' ', depth + 4)}0 SInt64 rid = {refObj.rid}"));
                 _streamWriter.WriteLine($"{new string(' ', depth + 4)}0 ReferencedManagedType type");
-                _streamWriter.WriteLine($"{new string(' ', depth + 5)}1 string class = \"{AssetTypeHelper.EscapeTextDumpString(typeRef.ClassName)}\"");
-                _streamWriter.WriteLine($"{new string(' ', depth + 5)}1 string ns = \"{AssetTypeHelper.EscapeTextDumpString(typeRef.Namespace)}\"");
-                _streamWriter.WriteLine($"{new string(' ', depth + 5)}1 string asm = \"{AssetTypeHelper.EscapeTextDumpString(typeRef.AsmName)}\"");
+                _streamWriter.WriteLine($"{new string(' ', depth + 5)}1 string class = \"{TextDumpEscapeString(typeRef.ClassName)}\"");
+                _streamWriter.WriteLine($"{new string(' ', depth + 5)}1 string ns = \"{TextDumpEscapeString(typeRef.Namespace)}\"");
+                _streamWriter.WriteLine($"{new string(' ', depth + 5)}1 string asm = \"{TextDumpEscapeString(typeRef.AsmName)}\"");
                 _streamWriter.WriteLine($"{new string(' ', depth + 4)}0 ReferencedObjectData data");
 
                 foreach (AssetTypeValueField child in refObj.data.Children)
@@ -223,8 +222,24 @@ public class AssetExport : IDisposable
 
                 if (field.Value.ValueType != AssetValueType.ManagedReferencesRegistry)
                 {
-                    // 使用通用的类型转换器
-                    return AssetTypeHelper.ConvertValueFieldToJToken(field);
+                    object value = valueType switch
+                    {
+                        AssetValueType.Bool => field.AsBool,
+                        AssetValueType.Int8 or
+                        AssetValueType.Int16 or
+                        AssetValueType.Int32 => field.AsInt,
+                        AssetValueType.Int64 => field.AsLong,
+                        AssetValueType.UInt8 or
+                        AssetValueType.UInt16 or
+                        AssetValueType.UInt32 => field.AsUInt,
+                        AssetValueType.UInt64 => field.AsULong,
+                        AssetValueType.String => field.AsString,
+                        AssetValueType.Float => field.AsFloat,
+                        AssetValueType.Double => field.AsDouble,
+                        _ => "invalid value"
+                    };
+
+                    return (JValue)JToken.FromObject(value);
                 }
                 else
                 {
@@ -248,15 +263,19 @@ public class AssetExport : IDisposable
     {
         var registry = field.Value.AsManagedReferencesRegistry;
 
-        if (AssetTypeHelper.IsValidManagedReferencesVersion(registry.version))
+        if (registry.version >= 1 || registry.version <= 2)
         {
             var jArrayRefs = new JArray();
             foreach (var refObj in registry.references)
             {
                 var typeRef = refObj.type;
 
-                var jObjManagedType = AssetTypeHelper.CreateManagedReferencesJObject(
-                    typeRef.ClassName, typeRef.Namespace, typeRef.AsmName);
+                var jObjManagedType = new JObject
+                {
+                    { "class", typeRef.ClassName },
+                    { "ns", typeRef.Namespace },
+                    { "asm", typeRef.AsmName }
+                };
 
                 var jObjData = new JObject();
                 foreach (var child in refObj.data)
@@ -300,30 +319,13 @@ public class AssetExport : IDisposable
         }
     }
 
-
-
-    public void Dispose()
+    // only replace \ with \\ but not " with \"
+    // you just have to find the last "
+    private static string TextDumpEscapeString(string str)
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!_disposed)
-        {
-            if (disposing)
-            {
-                // 释放托管资源
-                _streamWriter?.Dispose();
-                // 注意：不要释放 _stream，因为它是传入的，应该由调用者管理
-            }
-            _disposed = true;
-        }
-    }
-
-    ~AssetExport()
-    {
-        Dispose(false);
+        return str
+            .Replace("\\", "\\\\")
+            .Replace("\r", "\\r")
+            .Replace("\n", "\\n");
     }
 }

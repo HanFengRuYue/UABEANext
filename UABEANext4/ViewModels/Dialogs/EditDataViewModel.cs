@@ -36,7 +36,7 @@ public partial class EditDataViewModel : ViewModelBase, IDialogAware<byte[]?>
         _refMan = refMan;
 
         using var ms = new MemoryStream();
-        using var exporter = new AssetExport(ms);
+        var exporter = new AssetExport(ms);
         exporter.DumpJsonAsset(_baseField);
 
         ms.Position = 0;
@@ -49,7 +49,7 @@ public partial class EditDataViewModel : ViewModelBase, IDialogAware<byte[]?>
     {
         var text = Document!.Text;
         using var ms = new MemoryStream(Encoding.UTF8.GetBytes(text));
-        using var importer = new AssetImport(ms, _refMan);
+        var importer = new AssetImport(ms, _refMan);
         var data = importer.ImportJsonAsset(_baseField.TemplateField, out string? exceptionMessage);
         if (data == null)
         {
