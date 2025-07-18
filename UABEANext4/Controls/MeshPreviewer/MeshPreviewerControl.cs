@@ -220,27 +220,38 @@ public class MeshPreviewerControl : OpenGlControlBase, ICustomHitTest
         if (_loaded)
             return;
 
-        _loaded = true;
-        base.OnOpenGlInit(glInterface);
+        try
+        {
+            _loaded = true;
+            base.OnOpenGlInit(glInterface);
 
-        _gl = GL.GetApi(glInterface.GetProcAddress);
-        _gl.Enable(EnableCap.DepthTest);
+            _gl = GL.GetApi(glInterface.GetProcAddress);
+            _gl.Enable(EnableCap.DepthTest);
 
-        Debug.WriteLine($"Renderer: {_gl.GetStringS(GLEnum.Renderer)} Version: {_gl.GetStringS(GLEnum.Version)}");
+            Debug.WriteLine($"Renderer: {_gl.GetStringS(GLEnum.Renderer)} Version: {_gl.GetStringS(GLEnum.Version)}");
 
-        _vertexShader = LoadShader(ShaderType.VertexShader, MeshPreviewerShaders.VERTEX_SOURCE);
-        _fragmentShader = LoadShader(ShaderType.FragmentShader, MeshPreviewerShaders.FRAGMENT_SORUCE);
-        CheckError(0);
+            _vertexShader = LoadShader(ShaderType.VertexShader, MeshPreviewerShaders.VERTEX_SOURCE);
+            _fragmentShader = LoadShader(ShaderType.FragmentShader, MeshPreviewerShaders.FRAGMENT_SORUCE);
+            CheckError(0);
 
-        _shaderProgram = _gl.CreateProgram();
-        _gl.AttachShader(_shaderProgram, _vertexShader);
-        _gl.AttachShader(_shaderProgram, _fragmentShader);
-        _gl.BindAttribLocation(_shaderProgram, MeshPreviewerShaders.POSITION_LOC, "aPos");
-        _gl.BindAttribLocation(_shaderProgram, MeshPreviewerShaders.NORMAL_LOC, "aNormal");
-        _gl.LinkProgram(_shaderProgram);
-        CheckError(1);
+            _shaderProgram = _gl.CreateProgram();
+            _gl.AttachShader(_shaderProgram, _vertexShader);
+            _gl.AttachShader(_shaderProgram, _fragmentShader);
+            _gl.BindAttribLocation(_shaderProgram, MeshPreviewerShaders.POSITION_LOC, "aPos");
+            _gl.BindAttribLocation(_shaderProgram, MeshPreviewerShaders.NORMAL_LOC, "aNormal");
+            _gl.LinkProgram(_shaderProgram);
+            CheckError(1);
 
-        BuildMesh(_gl);
+            BuildMesh(_gl);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error during OpenGL initialization: {ex.Message}");
+            // 在初始化失败时清理已分配的资源
+            CleanupOpenGlResources();
+            _loaded = false;
+            throw; // 重新抛出异常，但确保资源已清理
+        }
     }
 
     private unsafe void BuildMesh(GL gl)
@@ -324,18 +335,76 @@ public class MeshPreviewerControl : OpenGlControlBase, ICustomHitTest
 
     protected override void OnOpenGlDeinit(GlInterface glInterface)
     {
-        var gl = GL.GetApi(glInterface.GetProcAddress);
+        try
+        {
+            var gl = GL.GetApi(glInterface.GetProcAddress);
+            CleanupOpenGlResources(gl);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error during OpenGL deinitialization: {ex.Message}");
+            // 即使清理失败，也继续执行，避免崩溃
+        }
+        finally
+        {
+            _loaded = false;
+        }
+    }
 
-        gl.BindBuffer(GLEnum.ArrayBuffer, 0);
-        gl.BindBuffer(GLEnum.ElementArrayBuffer, 0);
-        gl.BindVertexArray(0);
-        gl.UseProgram(0);
+    private void CleanupOpenGlResources(GL? gl = null)
+    {
+        if (gl == null || !_loaded)
+            return;
 
-        gl.DeleteBuffer(_vertexBufferObject);
-        gl.DeleteBuffer(_indexBufferObject);
-        gl.DeleteVertexArray(_vertexArrayObject);
-        gl.DeleteProgram(_shaderProgram);
-        gl.DeleteShader(_fragmentShader);
-        gl.DeleteShader(_vertexShader);
+        try
+        {
+            // 安全地解绑和删除OpenGL对象
+            gl.BindBuffer(GLEnum.ArrayBuffer, 0);
+            gl.BindBuffer(GLEnum.ElementArrayBuffer, 0);
+            gl.BindVertexArray(0);
+            gl.UseProgram(0);
+
+            if (_vertexBufferObject != 0)
+            {
+                gl.DeleteBuffer(_vertexBufferObject);
+                _vertexBufferObject = 0;
+            }
+
+            if (_indexBufferObject != 0)
+            {
+                gl.DeleteBuffer(_indexBufferObject);
+                _indexBufferObject = 0;
+            }
+
+            if (_vertexArrayObject != 0)
+            {
+                gl.DeleteVertexArray(_vertexArrayObject);
+                _vertexArrayObject = 0;
+            }
+
+            if (_shaderProgram != 0)
+            {
+                gl.DeleteProgram(_shaderProgram);
+                _shaderProgram = 0;
+            }
+
+            if (_fragmentShader != 0)
+            {
+                gl.DeleteShader(_fragmentShader);
+                _fragmentShader = 0;
+            }
+
+            if (_vertexShader != 0)
+            {
+                gl.DeleteShader(_vertexShader);
+                _vertexShader = 0;
+            }
+
+            Debug.WriteLine("OpenGL resources cleaned up successfully");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error during OpenGL resource cleanup: {ex.Message}");
+        }
     }
 }

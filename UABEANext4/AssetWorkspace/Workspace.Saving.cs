@@ -167,44 +167,51 @@ public partial class Workspace
 
         var streamPath = stream.Name;
         // verify we can write to this file
-        if (!TryOpenForWriting(streamPath, out var writeStream))
-        {
-            await MessageBoxUtil.ShowDialog("Error saving", "Couldn't open stream for writing");
-            return false;
-        }
-
-        var newName = "~" + Path.GetFileName(streamPath);
-        var dir = Path.GetDirectoryName(streamPath)!;
-        var tempWriteStreamPath = Path.Combine(dir, newName);
-        if (!TryOpenForWriting(tempWriteStreamPath, out var tempWriteStream))
-        {
-            await MessageBoxUtil.ShowDialog("Error saving", "Couldn't open temp file stream for writing");
-            return false;
-        }
-
-        if (type == WorkspaceItemType.AssetsFile)
-        {
-            WriteAssetsFile(item, tempWriteStream);
-        }
-        else if (type == WorkspaceItemType.BundleFile)
-        {
-            WriteBundleFile(item, tempWriteStream);
-        }
-        else if (type == WorkspaceItemType.ResourceFile)
-        {
-            WriteResource(item, tempWriteStream);
-        }
-
-        stream.Close();
-        writeStream.Close();
-        tempWriteStream.Close();
-        // technically there's a window here where the file could be reopened
-        // and block write access, but let's just assume that won't happen
-        // since that complicates things a bit...
+        FileStream? writeStream = null;
+        FileStream? tempWriteStream = null;
+        FileStream? newStream = null;
+        
         try
         {
+            if (!TryOpenForWriting(streamPath, out writeStream))
+            {
+                await MessageBoxUtil.ShowDialog("Error saving", "Couldn't open stream for writing");
+                return false;
+            }
+
+            var newName = "~" + Path.GetFileName(streamPath);
+            var dir = Path.GetDirectoryName(streamPath)!;
+            var tempWriteStreamPath = Path.Combine(dir, newName);
+            if (!TryOpenForWriting(tempWriteStreamPath, out tempWriteStream))
+            {
+                await MessageBoxUtil.ShowDialog("Error saving", "Couldn't open temp file stream for writing");
+                return false;
+            }
+
+            if (type == WorkspaceItemType.AssetsFile)
+            {
+                WriteAssetsFile(item, tempWriteStream);
+            }
+            else if (type == WorkspaceItemType.BundleFile)
+            {
+                WriteBundleFile(item, tempWriteStream);
+            }
+            else if (type == WorkspaceItemType.ResourceFile)
+            {
+                WriteResource(item, tempWriteStream);
+            }
+
+            // 正确释放资源
+            stream.Dispose();
+            writeStream.Dispose();
+            tempWriteStream.Dispose();
+            writeStream = null;
+            tempWriteStream = null;
+            
+            // 移动文件并重新打开
             File.Move(tempWriteStreamPath, streamPath, true);
-            var newStream = File.Open(streamPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            newStream = File.Open(streamPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            
             if (item.Object is AssetsFileInstance fileInst)
             {
                 fileInst.file = new AssetsFile();
@@ -260,6 +267,13 @@ public partial class Workspace
         {
             await MessageBoxUtil.ShowDialog("Error saving", "Unknown error:\n" + ex);
             return false;
+        }
+        finally
+        {
+            // 确保所有资源都被释放
+            writeStream?.Dispose();
+            tempWriteStream?.Dispose();
+            // 注意：newStream不应该在这里释放，因为它现在被 AssetsFile 使用
         }
         return true;
     }

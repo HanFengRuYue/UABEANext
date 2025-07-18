@@ -11,6 +11,8 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using UABEANext4.AssetWorkspace;
 using UABEANext4.Logic;
 using UABEANext4.Util;
@@ -24,6 +26,12 @@ public class AssetDataTreeView : TreeView
     //private Workspace _workspace;
 
     private AvaloniaList<object> ListItems = new AvaloniaList<object>();
+    
+    // 内存管理和性能优化
+    private readonly Dictionary<TreeViewItem, WeakReference<AvaloniaList<TreeViewItem>>> _itemCache = new();
+    private readonly SemaphoreSlim _loadingSemaphore = new(3, 3); // 限制同时加载的节点数
+    private const int MAX_CACHED_ITEMS = 50; // 最大缓存项数
+    private const int DEEP_NESTING_THRESHOLD = 8; // 深度嵌套阈值
 
     private MenuItem menuEditAsset;
     private MenuItem menuVisitAsset;
@@ -329,7 +337,12 @@ public class AssetDataTreeView : TreeView
             if (isExpanded && !itemInfo.loaded)
             {
                 itemInfo.loaded = true; // don't load this again
-                TreeLoad(fromFile, field, fromPathId, item);
+                _ = TreeLoadAsync(fromFile, field, fromPathId, item);
+            }
+            else if (!isExpanded && itemInfo.loaded)
+            {
+                // 当节点折叠时，考虑释放内存（如果项目很深或缓存过多）
+                ConsiderMemoryReclamation(item, itemInfo);
             }
         }));
     }
@@ -344,30 +357,114 @@ public class AssetDataTreeView : TreeView
             if (isExpanded && !itemInfo.loaded)
             {
                 itemInfo.loaded = true; // don't load this again
-
-                if (asset == null)
-                {
-                    item.ItemsSource = new AvaloniaList<TreeViewItem>() { CreateTreeItem("[null asset]") };
-                    return;
-                }
-
-                AssetTypeValueField? baseField = _workspace!.GetBaseField(asset);
-                if (baseField == null)
-                {
-                    item.ItemsSource = new AvaloniaList<TreeViewItem>() { CreateTreeItem("[failed to load]") };
-                    return;
-                }
-
-                TreeViewItem baseItem = CreateTreeItem($"{baseField.TypeName} {baseField.FieldName}");
-                TreeViewItem arrayIndexTreeItem = CreateTreeItem("Loading...");
-                baseItem.ItemsSource = new AvaloniaList<TreeViewItem>() { arrayIndexTreeItem };
-                item.ItemsSource = new AvaloniaList<TreeViewItem>() { baseItem };
-                SetTreeItemEvents(baseItem, asset.FileInstance, fromPathId, baseField);
+                _ = LoadPPtrAsync(item, asset, fromPathId);
+            }
+            else if (!isExpanded && itemInfo.loaded)
+            {
+                // 当节点折叠时，考虑释放内存
+                ConsiderMemoryReclamation(item, itemInfo);
             }
         }));
     }
 
-    private void TreeLoad(AssetsFileInstance fromFile, AssetTypeValueField assetField, long fromPathId, TreeViewItem treeItem)
+    /// <summary>
+    /// 异步加载PPtr资产
+    /// </summary>
+    private async Task LoadPPtrAsync(TreeViewItem item, AssetInst? asset, long fromPathId)
+    {
+        try
+        {
+            await _loadingSemaphore.WaitAsync();
+            
+            if (asset == null)
+            {
+                item.ItemsSource = new AvaloniaList<TreeViewItem>() { CreateTreeItem("[null asset]") };
+                return;
+            }
+
+            AssetTypeValueField? baseField = _workspace!.GetBaseField(asset);
+            if (baseField == null)
+            {
+                item.ItemsSource = new AvaloniaList<TreeViewItem>() { CreateTreeItem("[failed to load]") };
+                return;
+            }
+
+            TreeViewItem baseItem = CreateTreeItem($"{baseField.TypeName} {baseField.FieldName}");
+            TreeViewItem arrayIndexTreeItem = CreateTreeItem("Loading...");
+            baseItem.ItemsSource = new AvaloniaList<TreeViewItem>() { arrayIndexTreeItem };
+            item.ItemsSource = new AvaloniaList<TreeViewItem>() { baseItem };
+            SetTreeItemEvents(baseItem, asset.FileInstance, fromPathId, baseField);
+        }
+        catch (Exception ex)
+        {
+            var errorItem = CreateTreeItem($"[PPtr 加载错误: {ex.Message}]");
+            item.ItemsSource = new AvaloniaList<TreeViewItem> { errorItem };
+        }
+        finally
+        {
+            _loadingSemaphore.Release();
+        }
+    }
+
+    /// <summary>
+    /// 异步加载树节点数据
+    /// </summary>
+    private async Task TreeLoadAsync(AssetsFileInstance fromFile, AssetTypeValueField assetField, long fromPathId, TreeViewItem treeItem)
+    {
+        try
+        {
+            // 限制并发加载数量
+            await _loadingSemaphore.WaitAsync();
+            
+            // 检查是否已经从缓存中加载
+            if (_itemCache.TryGetValue(treeItem, out var cachedRef) && 
+                cachedRef.TryGetTarget(out var cachedItems))
+            {
+                treeItem.ItemsSource = cachedItems;
+                return;
+            }
+
+            // 在后台线程中准备数据
+            var items = await Task.Run(() => PrepareTreeItems(fromFile, assetField, fromPathId));
+            
+            // 回到UI线程更新界面
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var avaloniaItems = new AvaloniaList<TreeViewItem>(items);
+                treeItem.ItemsSource = avaloniaItems;
+                
+                // 缓存结果（使用弱引用）
+                _itemCache[treeItem] = new WeakReference<AvaloniaList<TreeViewItem>>(avaloniaItems);
+                
+                // 清理过期的缓存
+                CleanupExpiredCache();
+            });
+        }
+        catch (Exception ex)
+        {
+            // 错误处理
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var errorItem = CreateTreeItem($"[加载错误: {ex.Message}]");
+                treeItem.ItemsSource = new AvaloniaList<TreeViewItem> { errorItem };
+            });
+        }
+        finally
+        {
+            _loadingSemaphore.Release();
+        }
+    }
+
+    /// <summary>
+    /// 在后台线程中准备树项数据
+    /// </summary>
+    private List<TreeViewItem> PrepareTreeItems(AssetsFileInstance fromFile, AssetTypeValueField assetField, long fromPathId)
+    {
+        // 这是原来TreeLoad方法的逻辑，但返回List而不是直接设置ItemsSource
+        return TreeLoad(fromFile, assetField, fromPathId);
+    }
+
+    private List<TreeViewItem> TreeLoad(AssetsFileInstance fromFile, AssetTypeValueField assetField, long fromPathId)
     {
         List<AssetTypeValueField> children;
         if (assetField.Value != null && assetField.Value.ValueType == AssetValueType.ManagedReferencesRegistry)
@@ -376,10 +473,10 @@ public class AssetDataTreeView : TreeView
             children = assetField.Children;
 
         if (assetField.Children.Count == 0)
-            return;
+            return new List<TreeViewItem>();
 
         int arrayIdx = 0;
-        AvaloniaList<TreeViewItem> items = new AvaloniaList<TreeViewItem>(assetField.Children.Count + 1);
+        List<TreeViewItem> items = new List<TreeViewItem>(assetField.Children.Count + 1);
 
         AssetTypeTemplateField assetFieldTemplate = assetField.TemplateField;
         bool isArray = assetFieldTemplate.IsArray;
@@ -394,7 +491,7 @@ public class AssetDataTreeView : TreeView
 
         foreach (AssetTypeValueField childField in assetField)
         {
-            if (childField == null) return;
+            if (childField == null) return items;
             string middle = "";
             string value = "";
             string comment = "";
@@ -536,7 +633,7 @@ public class AssetDataTreeView : TreeView
             }
         }
 
-        treeItem.ItemsSource = items;
+        return items;
     }
 
     private void TreeLoadManagedRegistry(TreeViewItem childTreeItem, AssetTypeValueField childField, AssetsFileInstance fromFile, long fromPathId)
@@ -673,6 +770,87 @@ public class AssetDataTreeView : TreeView
         {
             LoadComponent(item);
         }
+    }
+
+    /// <summary>
+    /// 考虑内存回收 - 根据嵌套深度和缓存大小决定是否释放内存
+    /// </summary>
+    private void ConsiderMemoryReclamation(TreeViewItem item, AssetDataTreeViewItem itemInfo)
+    {
+        var nestingDepth = GetNestingDepth(item);
+        
+        // 如果嵌套很深或缓存过多，释放内存
+        if (nestingDepth > DEEP_NESTING_THRESHOLD || _itemCache.Count > MAX_CACHED_ITEMS)
+        {
+            // 清空子项但保留加载状态，下次展开时重新加载
+            var dummyItem = CreateTreeItem("Loading...");
+            item.ItemsSource = new AvaloniaList<TreeViewItem> { dummyItem };
+            
+            // 从缓存中移除
+            _itemCache.Remove(item);
+            
+            // 重置加载状态，允许下次重新加载
+            itemInfo.loaded = false;
+            
+            System.Diagnostics.Debug.WriteLine($"Released memory for tree item at depth {nestingDepth}");
+        }
+    }
+
+    /// <summary>
+    /// 获取树项的嵌套深度
+    /// </summary>
+    private int GetNestingDepth(TreeViewItem item)
+    {
+        int depth = 0;
+        var parent = item.Parent;
+        
+        while (parent is TreeViewItem parentItem)
+        {
+            depth++;
+            parent = parentItem.Parent;
+        }
+        
+        return depth;
+    }
+
+    /// <summary>
+    /// 清理过期的缓存项
+    /// </summary>
+    private void CleanupExpiredCache()
+    {
+        var expiredKeys = new List<TreeViewItem>();
+        
+        foreach (var kvp in _itemCache)
+        {
+            if (!kvp.Value.TryGetTarget(out _))
+            {
+                expiredKeys.Add(kvp.Key);
+            }
+        }
+        
+        foreach (var key in expiredKeys)
+        {
+            _itemCache.Remove(key);
+        }
+        
+        // 如果缓存仍然过大，移除最老的项
+        if (_itemCache.Count > MAX_CACHED_ITEMS)
+        {
+            var itemsToRemove = _itemCache.Take(_itemCache.Count - MAX_CACHED_ITEMS).ToList();
+            foreach (var item in itemsToRemove)
+            {
+                _itemCache.Remove(item.Key);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 清理所有缓存和信号量
+    /// </summary>
+    public void Dispose()
+    {
+        _itemCache.Clear();
+        _loadingSemaphore?.Dispose();
     }
 }
 

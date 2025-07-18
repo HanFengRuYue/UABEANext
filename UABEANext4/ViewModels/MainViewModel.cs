@@ -3,6 +3,7 @@ using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.DependencyInjection;
+using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Dock.Model.Controls;
 using System;
@@ -51,6 +52,78 @@ public partial class MainViewModel : ViewModelBase
         WeakReferenceMessenger.Default.Register<RequestEditAssetMessage>(this, OnRequestEditAsset);
     }
 
+    private int GetOptimalParallelism(int fileCount)
+    {
+        try
+        {
+            // 获取系统信息
+            var processorCount = Environment.ProcessorCount;
+            var totalMemory = GC.GetTotalMemory(false);
+            var availableMemory = GetAvailableMemory();
+            
+            // 基础并行度：使用 CPU 核心数的一半到全部，但至少为 2
+            int baseConcurrency = Math.Max(2, processorCount / 2);
+            
+            // 根据文件数量调整
+            if (fileCount < 10)
+            {
+                // 文件很少，使用较低的并行度
+                baseConcurrency = Math.Min(baseConcurrency, 2);
+            }
+            else if (fileCount > 100)
+            {
+                // 文件很多，可以使用更高的并行度
+                baseConcurrency = Math.Min(processorCount, 8);
+            }
+            
+            // 根据可用内存调整
+            var memoryInGB = availableMemory / (1024 * 1024 * 1024);
+            if (memoryInGB < 2)
+            {
+                // 内存不足，降低并行度
+                baseConcurrency = Math.Min(baseConcurrency, 2);
+            }
+            else if (memoryInGB > 8)
+            {
+                // 内存充足，可以使用更高的并行度
+                baseConcurrency = Math.Min(baseConcurrency * 2, processorCount);
+            }
+            
+            // 最终限制：不超过处理器核心数，不少于 1
+            int finalConcurrency = Math.Max(1, Math.Min(baseConcurrency, processorCount));
+            
+            System.Diagnostics.Debug.WriteLine($"File loading parallelism: {finalConcurrency} " +
+                $"(CPU cores: {processorCount}, Files: {fileCount}, Memory: {memoryInGB:F1}GB)");
+            
+            return finalConcurrency;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error calculating optimal parallelism: {ex.Message}");
+            // 出错时使用安全的默认值
+            return Math.Min(Environment.ProcessorCount - 1, 4);
+        }
+    }
+
+    private long GetAvailableMemory()
+    {
+        try
+        {
+            // 尝试获取可用物理内存
+            var process = System.Diagnostics.Process.GetCurrentProcess();
+            var workingSet = process.WorkingSet64;
+            
+            // 简单估算：假设系统总内存的 70% 可用
+            // 这是一个粗略的估计，实际可用内存可能不同
+            return Math.Max(2L * 1024 * 1024 * 1024, workingSet * 4); // 至少假设 2GB
+        }
+        catch
+        {
+            // 如果无法获取内存信息，假设有 4GB 可用
+            return 4L * 1024 * 1024 * 1024;
+        }
+    }
+
     public async Task OpenFiles(IEnumerable<string?> enumerable)
     {
         int totalCount = enumerable.Count();
@@ -61,7 +134,7 @@ public partial class MainViewModel : ViewModelBase
 
         var options = new ParallelOptions
         {
-            MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount - 1, 4)
+            MaxDegreeOfParallelism = GetOptimalParallelism(totalCount)
         };
 
         await Task.Run(() =>
@@ -78,21 +151,71 @@ public partial class MainViewModel : ViewModelBase
             {
                 if (fileName is not null)
                 {
+                    FileStream? fileStream = null;
                     try
                     {
-                        var fileStream = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        fileStream = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                         var file = Workspace.LoadAnyFile(fileStream, startLoadOrder + (int)index);
-                        var currentCountNow = Interlocked.Increment(ref currentCount);
-                        var successCountNow = Interlocked.Increment(ref successCount);
-                        var currentProgress = currentCountNow / (float)totalCount;
-                        Workspace.SetProgressThreadSafe(currentProgress, $"已加载 {successCountNow}/{totalCount} - {Path.GetFileName(fileName)}");
+                        
+                        // 如果加载成功，文件流现在由 Workspace 管理
+                        if (file != null)
+                        {
+                            fileStream = null; // 防止在 finally 块中关闭
+                            var currentCountNow = Interlocked.Increment(ref currentCount);
+                            var successCountNow = Interlocked.Increment(ref successCount);
+                            var currentProgress = currentCountNow / (float)totalCount;
+                            Workspace.SetProgressThreadSafe(currentProgress, $"已加载 {successCountNow}/{totalCount} - {Path.GetFileName(fileName)}");
+                        }
+                        else
+                        {
+                            // 加载失败，需要关闭文件流
+                            throw new InvalidOperationException("文件加载失败");
+                        }
                     }
-                    catch
+                    catch (FileNotFoundException)
                     {
                         var currentCountNow = Interlocked.Increment(ref currentCount);
                         var skipCountNow = Interlocked.Increment(ref skipCount);
                         var currentProgress = currentCountNow / (float)totalCount;
-                        Workspace.SetProgressThreadSafe(currentProgress, $"跳过 {skipCountNow} 个文件 - {Path.GetFileName(fileName)}");
+                        Workspace.SetProgressThreadSafe(currentProgress, $"跳过 {skipCountNow} 个文件 - 文件不存在: {Path.GetFileName(fileName)}");
+                        System.Diagnostics.Debug.WriteLine($"File not found: {fileName}");
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        var currentCountNow = Interlocked.Increment(ref currentCount);
+                        var skipCountNow = Interlocked.Increment(ref skipCount);
+                        var currentProgress = currentCountNow / (float)totalCount;
+                        Workspace.SetProgressThreadSafe(currentProgress, $"跳过 {skipCountNow} 个文件 - 权限不足: {Path.GetFileName(fileName)}");
+                        System.Diagnostics.Debug.WriteLine($"Access denied: {fileName}");
+                    }
+                    catch (IOException ex)
+                    {
+                        var currentCountNow = Interlocked.Increment(ref currentCount);
+                        var skipCountNow = Interlocked.Increment(ref skipCount);
+                        var currentProgress = currentCountNow / (float)totalCount;
+                        Workspace.SetProgressThreadSafe(currentProgress, $"跳过 {skipCountNow} 个文件 - IO错误: {Path.GetFileName(fileName)}");
+                        System.Diagnostics.Debug.WriteLine($"IO error loading {fileName}: {ex.Message}");
+                    }
+                    catch (NotSupportedException)
+                    {
+                        var currentCountNow = Interlocked.Increment(ref currentCount);
+                        var skipCountNow = Interlocked.Increment(ref skipCount);
+                        var currentProgress = currentCountNow / (float)totalCount;
+                        Workspace.SetProgressThreadSafe(currentProgress, $"跳过 {skipCountNow} 个文件 - 不支持的文件格式: {Path.GetFileName(fileName)}");
+                        System.Diagnostics.Debug.WriteLine($"Unsupported file format: {fileName}");
+                    }
+                    catch (Exception ex)
+                    {
+                        var currentCountNow = Interlocked.Increment(ref currentCount);
+                        var skipCountNow = Interlocked.Increment(ref skipCount);
+                        var currentProgress = currentCountNow / (float)totalCount;
+                        Workspace.SetProgressThreadSafe(currentProgress, $"跳过 {skipCountNow} 个文件 - 未知错误: {Path.GetFileName(fileName)}");
+                        System.Diagnostics.Debug.WriteLine($"Unexpected error loading {fileName}: {ex.Message}");
+                    }
+                    finally
+                    {
+                        // 只有在加载失败时才关闭文件流
+                        fileStream?.Dispose();
                     }
                 }
             });
@@ -141,57 +264,77 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    public async void FileOpen()
+    [RelayCommand]
+    public async Task FileOpen()
     {
-        var storageProvider = StorageService.GetStorageProvider();
-        if (storageProvider is null)
+        try
         {
-            return;
-        }
-
-        var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "打开文件",
-            FileTypeFilter = new FilePickerFileType[]
+            var storageProvider = StorageService.GetStorageProvider();
+            if (storageProvider is null)
             {
-                new FilePickerFileType("所有文件 (*.*)") { Patterns = new[] { "*" } }
-            },
-            AllowMultiple = true
-        });
+                await MessageBoxUtil.ShowDialog("错误", "无法获取文件存储提供程序");
+                return;
+            }
 
-        var fileNames = FileDialogUtils.GetOpenFileDialogFiles(result);
-        await OpenFiles(fileNames);
+            var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "打开文件",
+                FileTypeFilter = new FilePickerFileType[]
+                {
+                    new FilePickerFileType("所有文件 (*.*)") { Patterns = new[] { "*" } }
+                },
+                AllowMultiple = true
+            });
+
+            var fileNames = FileDialogUtils.GetOpenFileDialogFiles(result);
+            await OpenFiles(fileNames);
+        }
+        catch (Exception ex)
+        {
+            await MessageBoxUtil.ShowDialog("错误", $"打开文件时发生错误: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Error in FileOpen: {ex.Message}");
+        }
     }
 
-    public async void FolderOpen()
+    [RelayCommand]
+    public async Task FolderOpen()
     {
-        var storageProvider = StorageService.GetStorageProvider();
-        if (storageProvider is null)
+        try
         {
-            return;
+            var storageProvider = StorageService.GetStorageProvider();
+            if (storageProvider is null)
+            {
+                await MessageBoxUtil.ShowDialog("错误", "无法获取文件存储提供程序");
+                return;
+            }
+
+            var result = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "选择游戏目录",
+                AllowMultiple = false
+            });
+
+            var folders = FileDialogUtils.GetOpenFolderDialogFolders(result);
+            if (folders.Length == 0)
+            {
+                return;
+            }
+
+            // 直接用默认参数（全部开启）
+            var scanOptions = new ScanOptions
+            {
+                IncludeSubdirectories = true,
+                ScanCommonUnityDirectories = true,
+                ValidateFileTypes = true,
+                SkipSmallFiles = true
+            };
+            await ScanDirectory(folders[0], scanOptions);
         }
-
-        var result = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        catch (Exception ex)
         {
-            Title = "选择游戏目录",
-            AllowMultiple = false
-        });
-
-        var folders = FileDialogUtils.GetOpenFolderDialogFolders(result);
-        if (folders.Length == 0)
-        {
-            return;
+            await MessageBoxUtil.ShowDialog("错误", $"打开文件夹时发生错误: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Error in FolderOpen: {ex.Message}");
         }
-
-        // 直接用默认参数（全部开启）
-        var scanOptions = new ScanOptions
-        {
-            IncludeSubdirectories = true,
-            ScanCommonUnityDirectories = true,
-            ValidateFileTypes = true,
-            SkipSmallFiles = true
-        };
-        await ScanDirectory(folders[0], scanOptions);
     }
 
     private async Task ScanDirectory(string directoryPath, ScanOptions options)

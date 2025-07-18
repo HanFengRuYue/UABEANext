@@ -7,11 +7,12 @@ using System.IO;
 using System.Text;
 
 namespace UABEANext4.Logic.ImportExport;
-public class AssetImport
+public class AssetImport : IDisposable
 {
     private readonly Stream _stream;
     private readonly StreamReader _streamReader;
     private readonly RefTypeManager _refMan;
+    private bool _disposed = false;
 
     public AssetImport(Stream readStream, RefTypeManager refMan)
     {
@@ -82,96 +83,37 @@ public class AssetImport
             {
                 string check = line.Substring(typeName);
 
-                // sorted by frequency
-                if (StartsWithSpace(check, "int"))
-                {
-                    writer.Write(int.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "float"))
-                {
-                    writer.Write(float.Parse(valueStr, NumberStyles.Float, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "bool"))
-                {
-                    writer.Write(bool.Parse(valueStr));
-                }
-                else if (StartsWithSpace(check, "SInt64"))
-                {
-                    writer.Write(long.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "string"))
+                // 处理字符串类型
+                if (AssetTypeHelper.StartsWithSpace(check, "string"))
                 {
                     int firstQuote = valueStr.IndexOf('"');
                     int lastQuote = valueStr.LastIndexOf('"');
                     string valueStrFix = valueStr.Substring(firstQuote + 1, lastQuote - firstQuote - 1);
-                    valueStrFix = UnescapeDumpString(valueStrFix);
+                    valueStrFix = AssetTypeHelper.UnescapeTextDumpString(valueStrFix);
                     writer.WriteCountStringInt32(valueStrFix);
                 }
-                else if (StartsWithSpace(check, "UInt8"))
+                else
                 {
-                    writer.Write(byte.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "unsigned int"))
-                {
-                    writer.Write(uint.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "UInt16"))
-                {
-                    writer.Write(ushort.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "SInt8"))
-                {
-                    writer.Write(sbyte.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "SInt16"))
-                {
-                    writer.Write(short.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "UInt64"))
-                {
-                    writer.Write(ulong.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "double"))
-                {
-                    writer.Write(double.Parse(valueStr, NumberStyles.Float, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "char"))
-                {
-                    writer.Write(sbyte.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "FileSize"))
-                {
-                    writer.Write(ulong.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                // not seen in the wild? but still part of at
-                // I'm not sure where this list is from
-                else if (StartsWithSpace(check, "short"))
-                {
-                    writer.Write(short.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "long"))
-                {
-                    writer.Write(long.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "SInt32"))
-                {
-                    writer.Write(int.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "UInt32"))
-                {
-                    writer.Write(uint.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "unsigned char"))
-                {
-                    writer.Write(byte.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "unsigned short"))
-                {
-                    writer.Write(ushort.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
-                }
-                else if (StartsWithSpace(check, "unsigned long long"))
-                {
-                    writer.Write(ulong.Parse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture));
+                    // 尝试使用通用类型解析器
+                    bool handled = false;
+                    foreach (var supportedTypeName in AssetTypeHelper.GetSupportedTypeNames())
+                    {
+                        if (AssetTypeHelper.StartsWithSpace(check, supportedTypeName))
+                        {
+                            if (AssetTypeHelper.TryParseValue(supportedTypeName, valueStr, out var parsedValue))
+                            {
+                                AssetTypeHelper.WriteValue(writer, supportedTypeName, parsedValue!);
+                                handled = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (!handled)
+                    {
+                        // 如果没有找到匹配的类型，记录警告
+                        System.Diagnostics.Debug.WriteLine($"Warning: Unsupported type in text import: {check}");
+                    }
                 }
 
                 if (align)
@@ -255,61 +197,6 @@ public class AssetImport
         {
             switch (tempField.ValueType)
             {
-                case AssetValueType.Bool:
-                {
-                    writer.Write((bool)token);
-                    break;
-                }
-                case AssetValueType.UInt8:
-                {
-                    writer.Write((byte)token);
-                    break;
-                }
-                case AssetValueType.Int8:
-                {
-                    writer.Write((sbyte)token);
-                    break;
-                }
-                case AssetValueType.UInt16:
-                {
-                    writer.Write((ushort)token);
-                    break;
-                }
-                case AssetValueType.Int16:
-                {
-                    writer.Write((short)token);
-                    break;
-                }
-                case AssetValueType.UInt32:
-                {
-                    writer.Write((uint)token);
-                    break;
-                }
-                case AssetValueType.Int32:
-                {
-                    writer.Write((int)token);
-                    break;
-                }
-                case AssetValueType.UInt64:
-                {
-                    writer.Write((ulong)token);
-                    break;
-                }
-                case AssetValueType.Int64:
-                {
-                    writer.Write((long)token);
-                    break;
-                }
-                case AssetValueType.Float:
-                {
-                    writer.Write((float)token);
-                    break;
-                }
-                case AssetValueType.Double:
-                {
-                    writer.Write((double)token);
-                    break;
-                }
                 case AssetValueType.String:
                 {
                     align = true;
@@ -326,6 +213,13 @@ public class AssetImport
                     }
                     writer.Write(byteArrayData.Length);
                     writer.Write(byteArrayData);
+                    break;
+                }
+                default:
+                {
+                    // 使用通用的类型转换器
+                    var convertedValue = AssetTypeHelper.ConvertJTokenToValue(tempField.ValueType, token);
+                    WriteValueByType(writer, tempField.ValueType, convertedValue);
                     break;
                 }
             }
@@ -358,7 +252,7 @@ public class AssetImport
     private void JsonImportManagedReferencesRegistry(AssetsFileWriter writer, AssetTypeTemplateField tempField, JToken token)
     {
         int version = (int)ExpectAndReadField(token, "version", tempField);
-        if (version < 1 || version > 2)
+        if (!AssetTypeHelper.IsValidManagedReferencesVersion(version))
         {
             throw new Exception($"ManagedReferencesRegistry version {version} is invalid.");
         }
@@ -429,57 +323,76 @@ public class AssetImport
 
     private JToken ExpectAndReadField(JToken token, string name, AssetTypeTemplateField? tempField)
     {
-        JToken? versionToken = token[name];
-        if (versionToken == null)
-        {
-            if (tempField == null)
-            {
-                throw new Exception($"Missing field {name} in JSON.");
-            }
-            else
-            {
-                throw new Exception($"Missing field {name} in JSON. Parent field is {tempField.Type} {tempField.Name}.");
-            }
-        }
-        return versionToken;
+        return AssetTypeHelper.ExpectAndReadField(token, name, tempField);
     }
 
-    private static bool StartsWithSpace(string str, string value)
+    /// <summary>
+    /// 根据AssetValueType写入值
+    /// </summary>
+    private void WriteValueByType(AssetsFileWriter writer, AssetValueType valueType, object value)
     {
-        return str.StartsWith(value + " ");
+        switch (valueType)
+        {
+            case AssetValueType.Bool:
+                writer.Write((bool)value);
+                break;
+            case AssetValueType.UInt8:
+                writer.Write((byte)value);
+                break;
+            case AssetValueType.Int8:
+                writer.Write((sbyte)value);
+                break;
+            case AssetValueType.UInt16:
+                writer.Write((ushort)value);
+                break;
+            case AssetValueType.Int16:
+                writer.Write((short)value);
+                break;
+            case AssetValueType.UInt32:
+                writer.Write((uint)value);
+                break;
+            case AssetValueType.Int32:
+                writer.Write((int)value);
+                break;
+            case AssetValueType.UInt64:
+                writer.Write((ulong)value);
+                break;
+            case AssetValueType.Int64:
+                writer.Write((long)value);
+                break;
+            case AssetValueType.Float:
+                writer.Write((float)value);
+                break;
+            case AssetValueType.Double:
+                writer.Write((double)value);
+                break;
+            default:
+                throw new ArgumentException($"Unsupported value type: {valueType}");
+        }
     }
 
-    private static string UnescapeDumpString(string str)
+    public void Dispose()
     {
-        StringBuilder sb = new StringBuilder(str.Length);
-        bool escaping = false;
-        foreach (char c in str)
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
         {
-            if (!escaping && c == '\\')
+            if (disposing)
             {
-                escaping = true;
-                continue;
+                // 释放托管资源
+                _streamReader?.Dispose();
+                // 注意：不要释放 _stream，因为它是传入的，应该由调用者管理
             }
-
-            if (escaping)
-            {
-                if (c == '\\')
-                    sb.Append('\\');
-                else if (c == 'r')
-                    sb.Append('\r');
-                else if (c == 'n')
-                    sb.Append('\n');
-                else
-                    sb.Append(c);
-
-                escaping = false;
-            }
-            else
-            {
-                sb.Append(c);
-            }
+            _disposed = true;
         }
+    }
 
-        return sb.ToString();
+    ~AssetImport()
+    {
+        Dispose(false);
     }
 }

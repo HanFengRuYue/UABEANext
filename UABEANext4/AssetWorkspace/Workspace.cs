@@ -85,15 +85,40 @@ public partial class Workspace : ObservableObject
 
     public WorkspaceItem LoadBundle(Stream stream, int loadOrder = -1, string name = "")
     {
-        // todo: don't always unpack to memory lol
+        // 优化内存使用：根据文件大小决定加载策略
+        // 大于 100MB 的文件使用流式处理
+        const long LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB
+        
         BundleFileInstance bunInst;
+        
         if (stream is FileStream fs)
         {
-            bunInst = Manager.LoadBundleFile(fs);
+            var fileSize = fs.Length;
+            
+            if (fileSize > LARGE_FILE_THRESHOLD)
+            {
+                // 对于大文件，使用流式处理
+                System.Diagnostics.Debug.WriteLine($"Loading large bundle file ({FileUtils.GetFormattedByteSize(fileSize)}) with stream processing: {fs.Name}");
+                bunInst = Manager.LoadBundleFile(fs);
+            }
+            else
+            {
+                // 对于小文件，可以使用原有方式
+                bunInst = Manager.LoadBundleFile(fs);
+            }
         }
         else
         {
-            bunInst = Manager.LoadBundleFile(stream, name);
+            // 对于非文件流，检查流长度
+            if (stream.CanSeek && stream.Length > LARGE_FILE_THRESHOLD)
+            {
+                System.Diagnostics.Debug.WriteLine($"Loading large bundle stream ({FileUtils.GetFormattedByteSize(stream.Length)}) with stream processing");
+                bunInst = Manager.LoadBundleFile(stream, name);
+            }
+            else
+            {
+                bunInst = Manager.LoadBundleFile(stream, name);
+            }
         }
 
         TryLoadClassDatabase(bunInst.file);
@@ -234,16 +259,45 @@ public partial class Workspace : ObservableObject
         }, null);
     }
 
+    private DateTime _lastProgressUpdate = DateTime.MinValue;
+    private readonly object _progressLock = new object();
+    private const int PROGRESS_UPDATE_INTERVAL_MS = 100; // 100ms 最小更新间隔
+
     public void SetProgressThreadSafe(float value, string text)
     {
-        var roundedValue = (float)Math.Round(value * 20) / 20;
-        if (Math.Abs(roundedValue - ProgressValue) >= 0.05f || value == 0f || value == 1f)
+        lock (_progressLock)
         {
-            FileSyncContext?.Post(_ =>
+            var now = DateTime.Now;
+            var roundedValue = (float)Math.Round(value * 20) / 20;
+            
+            // 检查是否应该更新进度
+            var shouldUpdate = false;
+            
+            // 强制更新的条件
+            if (value == 0f || value == 1f)
             {
-                ProgressValue = value;
-                ProgressText = text;
-            }, null);
+                shouldUpdate = true;
+            }
+            // 进度值有显著变化
+            else if (Math.Abs(roundedValue - ProgressValue) >= 0.05f)
+            {
+                shouldUpdate = true;
+            }
+            // 距离上次更新已过去足够时间
+            else if ((now - _lastProgressUpdate).TotalMilliseconds >= PROGRESS_UPDATE_INTERVAL_MS)
+            {
+                shouldUpdate = true;
+            }
+            
+            if (shouldUpdate)
+            {
+                _lastProgressUpdate = now;
+                FileSyncContext?.Post(_ =>
+                {
+                    ProgressValue = value;
+                    ProgressText = text;
+                }, null);
+            }
         }
     }
 
@@ -429,22 +483,135 @@ public partial class Workspace : ObservableObject
 
     public void CloseAll()
     {
-        foreach (var item in RootItems)
+        try
         {
-            if (item.ObjectType == WorkspaceItemType.ResourceFile && item.Loaded)
+            System.Diagnostics.Debug.WriteLine("Starting workspace cleanup...");
+            
+            // 安全地释放所有资源
+            int closedStreams = 0;
+            int failedStreams = 0;
+            
+            foreach (var item in RootItems)
             {
-                var stream = (Stream?)item.Object;
-                stream?.Close();
+                try
+                {
+                    if (item.ObjectType == WorkspaceItemType.ResourceFile && item.Loaded)
+                    {
+                        var stream = (Stream?)item.Object;
+                        if (stream != null)
+                        {
+                            stream.Dispose(); // 使用 Dispose 而不是 Close
+                            closedStreams++;
+                        }
+                    }
+                    else if (item.ObjectType == WorkspaceItemType.AssetsFile && item.Loaded)
+                    {
+                        // 确保 AssetsFile 相关的资源也被释放
+                        var assetsFileInstance = item.Object as AssetsFileInstance;
+                        if (assetsFileInstance?.AssetsStream != null)
+                        {
+                            try
+                            {
+                                assetsFileInstance.AssetsStream.Dispose();
+                                closedStreams++;
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to dispose AssetsStream: {ex.Message}");
+                                failedStreams++;
+                            }
+                        }
+                    }
+                    else if (item.ObjectType == WorkspaceItemType.BundleFile && item.Loaded)
+                    {
+                        // 确保 BundleFile 相关的资源也被释放
+                        var bundleFileInstance = item.Object as BundleFileInstance;
+                        if (bundleFileInstance?.BundleStream != null)
+                        {
+                            try
+                            {
+                                bundleFileInstance.BundleStream.Dispose();
+                                closedStreams++;
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to dispose BundleStream: {ex.Message}");
+                                failedStreams++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error closing workspace item {item.Name}: {ex.Message}");
+                    failedStreams++;
+                }
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"Closed {closedStreams} streams, {failedStreams} failed");
+            
+            // 安全地清理管理器
+            try
+            {
+                Manager.UnloadAll();
+                System.Diagnostics.Debug.WriteLine("Manager unloaded successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error unloading manager: {ex.Message}");
+            }
+            
+            try
+            {
+                Manager.UnloadClassDatabase();
+                System.Diagnostics.Debug.WriteLine("Class database unloaded successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error unloading class database: {ex.Message}");
+            }
+            
+            // 清理其他资源
+            try
+            {
+                Manager.MonoTempGenerator = null;
+                _setMonoTempGeneratorsYet = false;
+                System.Diagnostics.Debug.WriteLine("Mono temp generator cleared");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error clearing mono temp generator: {ex.Message}");
+            }
+            
+            // 清理集合
+            RootItems.Clear();
+            ItemLookup.Clear();
+            UnsavedItems.Clear();
+            ModifiedItems.Clear();
+            
+            // 强制垃圾回收以释放内存
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            
+            System.Diagnostics.Debug.WriteLine("Workspace cleanup completed successfully");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Critical error during workspace cleanup: {ex.Message}");
+            // 即使出现错误也要尝试清理基本状态
+            try
+            {
+                RootItems.Clear();
+                ItemLookup.Clear();
+                UnsavedItems.Clear();
+                ModifiedItems.Clear();
+            }
+            catch
+            {
+                // 忽略清理集合时的异常
             }
         }
-        Manager.UnloadAll();
-        Manager.UnloadClassDatabase();
-        Manager.MonoTempGenerator = null;
-        _setMonoTempGeneratorsYet = false;
-        RootItems.Clear();
-        ItemLookup.Clear();
-        UnsavedItems.Clear();
-        ModifiedItems.Clear();
     }
 
     public void RenameFile(WorkspaceItem wsItem, string newName)

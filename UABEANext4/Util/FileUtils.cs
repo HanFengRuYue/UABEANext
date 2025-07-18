@@ -93,12 +93,25 @@ public static class FileUtils
                         progressCallback?.Invoke($"正在验证文件... ({processedCount}/{allFiles.Count})");
                     }
 
+                    // 检查文件是否存在且可访问
+                    if (!File.Exists(file))
+                    {
+                        continue;
+                    }
+
                     // 检查文件大小，跳过太小的文件
                     if (options.SkipSmallFiles)
                     {
                         var fileInfo = new FileInfo(file);
                         if (fileInfo.Length < 0x20) // 小于32字节的文件通常不是有效的Unity文件
                         {
+                            continue;
+                        }
+                        
+                        // 检查文件是否过大（超过2GB的文件可能有问题）
+                        if (fileInfo.Length > 2L * 1024 * 1024 * 1024)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Skipping very large file: {file} ({GetFormattedByteSize(fileInfo.Length)})");
                             continue;
                         }
                     }
@@ -111,7 +124,8 @@ public static class FileUtils
                         {
                             supportedFiles.Add(file);
                         }
-                        else if (file.EndsWith(".resS") || file.EndsWith(".resource"))
+                        else if (file.EndsWith(".resS", StringComparison.OrdinalIgnoreCase) || 
+                                file.EndsWith(".resource", StringComparison.OrdinalIgnoreCase))
                         {
                             // 资源文件即使检测失败也添加，因为它们是Unity的标准资源文件
                             supportedFiles.Add(file);
@@ -123,9 +137,19 @@ public static class FileUtils
                         supportedFiles.Add(file);
                     }
                 }
-                catch
+                catch (UnauthorizedAccessException)
                 {
-                    // 忽略无法读取的文件
+                    System.Diagnostics.Debug.WriteLine($"Access denied to file: {file}");
+                    continue;
+                }
+                catch (IOException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"I/O error accessing file {file}: {ex.Message}");
+                    continue;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Unexpected error processing file {file}: {ex.Message}");
                     continue;
                 }
             }

@@ -196,41 +196,124 @@ public partial class AssetDocumentViewModel : Document
     }
 
     partial void OnSearchTextChanged(string value) => _setDataGridFilterDb(value);
-    partial void OnSelectedAssetTypeChanged(AssetClassID? value) => UpdateFilter();
-    partial void OnSelectedFileNameChanged(string value) => UpdateFilter();
-    partial void OnShowModifiedOnlyChanged(bool value) => UpdateFilter();
-    partial void OnShowUnmodifiedOnlyChanged(bool value) => UpdateFilter();
-    partial void OnMinSizeChanged(long value) => UpdateFilter();
-    partial void OnMaxSizeChanged(long value) => UpdateFilter();
-    partial void OnTypeSearchTextChanged(string value) => UpdateTypeFilter();
+    partial void OnSelectedAssetTypeChanged(AssetClassID? value) => UpdateFilterWithThrottling();
+    partial void OnSelectedFileNameChanged(string value) => UpdateFilterWithThrottling();
+    partial void OnShowModifiedOnlyChanged(bool value) => UpdateFilterWithThrottling();
+    partial void OnShowUnmodifiedOnlyChanged(bool value) => UpdateFilterWithThrottling();
+    partial void OnMinSizeChanged(long value) => UpdateFilterWithThrottling();
+    partial void OnMaxSizeChanged(long value) => UpdateFilterWithThrottling();
+    partial void OnTypeSearchTextChanged(string value) => UpdateTypeFilterWithThrottling();
+    
+    private readonly object _filterLock = new object();
+    private DateTime _lastFilterUpdate = DateTime.MinValue;
+    private const int FILTER_THROTTLE_MS = 100; // 100ms throttling
+    
+    private void UpdateFilterWithThrottling()
+    {
+        lock (_filterLock)
+        {
+            var now = DateTime.Now;
+            var timeSinceLastUpdate = now - _lastFilterUpdate;
+            
+            if (timeSinceLastUpdate.TotalMilliseconds > FILTER_THROTTLE_MS)
+            {
+                _lastFilterUpdate = now;
+                UpdateFilter();
+            }
+            else
+            {
+                // 延迟更新
+                Task.Delay(FILTER_THROTTLE_MS).ContinueWith(_ => UpdateFilter());
+            }
+        }
+    }
+    
+    private void UpdateTypeFilterWithThrottling()
+    {
+        lock (_filterLock)
+        {
+            var now = DateTime.Now;
+            var timeSinceLastUpdate = now - _lastFilterUpdate;
+            
+            if (timeSinceLastUpdate.TotalMilliseconds > FILTER_THROTTLE_MS)
+            {
+                _lastFilterUpdate = now;
+                UpdateTypeFilter();
+            }
+            else
+            {
+                // 延迟更新
+                Task.Delay(FILTER_THROTTLE_MS).ContinueWith(_ => UpdateTypeFilter());
+            }
+        }
+    }
 
     private void UpdateTypeFilter()
     {
-        FilteredAssetTypes.Clear();
-        var filteredTypes = AvailableAssetTypes
-            .Where(type => type == null || string.IsNullOrEmpty(TypeSearchText) || 
-                          type?.ToString().Contains(TypeSearchText, StringComparison.OrdinalIgnoreCase) == true)
-            .ToList();
-        
-        foreach (var type in filteredTypes)
+        try
         {
-            FilteredAssetTypes.Add(type);
+            if (string.IsNullOrEmpty(TypeSearchText))
+            {
+                // 如果没有搜索文本，显示所有类型
+                if (FilteredAssetTypes.Count != AvailableAssetTypes.Count)
+                {
+                    FilteredAssetTypes.Clear();
+                    foreach (var type in AvailableAssetTypes)
+                    {
+                        FilteredAssetTypes.Add(type);
+                    }
+                }
+                return;
+            }
+            
+            // 优化：只在结果确实不同时才更新集合
+            var searchTextLower = TypeSearchText.ToLowerInvariant();
+            var filteredTypes = AvailableAssetTypes
+                .Where(type => type == null || type?.ToString().Contains(searchTextLower, StringComparison.OrdinalIgnoreCase) == true)
+                .ToList();
+            
+            // 检查是否需要更新
+            if (FilteredAssetTypes.Count != filteredTypes.Count || 
+                !FilteredAssetTypes.SequenceEqual(filteredTypes))
+            {
+                FilteredAssetTypes.Clear();
+                foreach (var type in filteredTypes)
+                {
+                    FilteredAssetTypes.Add(type);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error updating type filter: {ex.Message}");
         }
     }
 
     private void UpdateFilter()
     {
-        System.Diagnostics.Debug.WriteLine($"UpdateFilter被调用 - SelectedAssetType: {SelectedAssetType}");
-        
-        if (Items != null)
-        {
-            // 重新创建CollectionView以确保过滤器生效
-            var newCollectionView = new DataGridCollectionView(Items);
-            newCollectionView.Filter = CreateAdvancedFilter();
-            CollectionView = newCollectionView;
-            UpdateItemCounts();
+        if (Items == null || Items.Count == 0)
+            return;
             
-            System.Diagnostics.Debug.WriteLine($"过滤后项目数: {FilteredItems}/{TotalItems}");
+        try
+        {
+            // 优化：只在必要时重新创建CollectionView
+            if (CollectionView == null || CollectionView.SourceCollection != Items)
+            {
+                var newCollectionView = new DataGridCollectionView(Items);
+                newCollectionView.Filter = CreateAdvancedFilter();
+                CollectionView = newCollectionView;
+            }
+            else
+            {
+                // 更新现有CollectionView的过滤器
+                CollectionView.Filter = CreateAdvancedFilter();
+            }
+            
+            UpdateItemCounts();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error updating filter: {ex.Message}");
         }
     }
 
@@ -245,42 +328,58 @@ public partial class AssetDocumentViewModel : Document
 
     private Func<object, bool> CreateAdvancedFilter()
     {
+        // 缓存过滤条件以避免重复计算
+        var hasSearchText = !string.IsNullOrEmpty(SearchText);
+        var searchTextLower = hasSearchText ? SearchText.ToLowerInvariant() : "";
+        var hasSelectedAssetType = SelectedAssetType != null;
+        var hasSelectedFileName = !string.IsNullOrEmpty(SelectedFileName);
+        var selectedFileNameLower = hasSelectedFileName ? SelectedFileName.ToLowerInvariant() : "";
+        var hasModifiedFilter = ShowModifiedOnly || ShowUnmodifiedOnly;
+        var hasSizeFilter = MinSize > 0 || MaxSize < long.MaxValue;
+        
         return o =>
         {
             if (o is not AssetInst asset)
                 return false;
 
-            // 文本搜索过滤
-            if (!string.IsNullOrEmpty(SearchText))
+            // 最快的过滤器优先 - 资源类型过滤
+            if (hasSelectedAssetType && asset.Type != SelectedAssetType)
+                return false;
+
+            // 修改状态过滤 - 简单的布尔检查
+            if (hasModifiedFilter)
             {
-                bool textMatch = asset.DisplayName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
-                                (ClassIdToString.TryGetValue(asset.Type, out string? classIdName) && 
-                                 classIdName.Contains(SearchText, StringComparison.OrdinalIgnoreCase)) ||
-                                asset.FileName.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
-                if (!textMatch) return false;
+                var hasReplacer = asset.Replacer != null;
+                if (ShowModifiedOnly && !hasReplacer)
+                    return false;
+                if (ShowUnmodifiedOnly && hasReplacer)
+                    return false;
             }
 
-            // 资源类型过滤
-            if (SelectedAssetType != null && asset.Type != SelectedAssetType)
+            // 大小过滤 - 数值比较
+            if (hasSizeFilter && (asset.ByteSizeModified < MinSize || asset.ByteSizeModified > MaxSize))
+                return false;
+
+            // 文件名过滤 - 字符串操作
+            if (hasSelectedFileName && !asset.FileName.Contains(selectedFileNameLower, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            // 文本搜索过滤 - 最昂贵的操作放在最后
+            if (hasSearchText)
             {
-                System.Diagnostics.Debug.WriteLine($"过滤掉类型: {asset.Type}, 选中类型: {SelectedAssetType}");
+                // 优化：使用缓存的小写字符串和更高效的字符串比较
+                if (asset.DisplayName.Contains(searchTextLower, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                    
+                if (ClassIdToString.TryGetValue(asset.Type, out string? classIdName) && 
+                    classIdName.Contains(searchTextLower, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                    
+                if (asset.FileName.Contains(searchTextLower, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                    
                 return false;
             }
-
-            // 文件名过滤
-            if (!string.IsNullOrEmpty(SelectedFileName) && 
-                !asset.FileName.Contains(SelectedFileName, StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            // 修改状态过滤
-            if (ShowModifiedOnly && asset.Replacer == null)
-                return false;
-            if (ShowUnmodifiedOnly && asset.Replacer != null)
-                return false;
-
-            // 大小过滤
-            if (asset.ByteSizeModified < MinSize || asset.ByteSizeModified > MaxSize)
-                return false;
 
             return true;
         };
@@ -405,7 +504,7 @@ public partial class AssetDocumentViewModel : Document
             using FileStream fs = File.OpenRead(selectedFilePath);
 
             Workspace.CheckAndSetMonoTempGenerators(selectedInst, selectedAsset);
-            var importer = new AssetImport(fs, Workspace.Manager.GetRefTypeManager(selectedInst));
+            using var importer = new AssetImport(fs, Workspace.Manager.GetRefTypeManager(selectedInst));
 
             byte[]? data;
             string? exceptionMessage;
@@ -472,7 +571,7 @@ public partial class AssetDocumentViewModel : Document
         using var fs = File.OpenRead(file);
 
         Workspace.CheckAndSetMonoTempGenerators(asset.FileInstance, asset);
-        var importer = new AssetImport(fs, Workspace.Manager.GetRefTypeManager(asset.FileInstance));
+        using var importer = new AssetImport(fs, Workspace.Manager.GetRefTypeManager(asset.FileInstance));
 
         byte[]? data = null;
         string? exception;
@@ -590,7 +689,7 @@ public partial class AssetDocumentViewModel : Document
         foreach (var (asset, file) in filesToWrite)
         {
             using var fs = File.OpenWrite(file);
-            var exporter = new AssetExport(fs);
+            using var exporter = new AssetExport(fs);
 
             if (file.EndsWith(".json") || file.EndsWith(".txt"))
             {
