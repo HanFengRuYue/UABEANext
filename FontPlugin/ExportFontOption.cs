@@ -65,7 +65,8 @@ public class ExportFontOption : IUavPluginOption
             var extension = isOtf ? ".otf" : ".ttf";
 
             var assetName = PathUtils.ReplaceInvalidPathChars(name);
-            var filePath = AssetNameUtils.GetAssetFileName(asset, assetName, extension);
+            var fileName = AssetNameUtils.GetAssetFileName(asset, assetName, extension);
+            var filePath = Path.Combine(dir, fileName);
 
             File.WriteAllBytes(filePath, byteData);
         }
