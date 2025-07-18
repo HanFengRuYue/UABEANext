@@ -22,3 +22,18 @@ UABEANext 是一款基于 .NET 的跨平台 Unity 资源编辑与预览工具，
 - `ReleaseFiles/`：发布相关文件。
 - `readme.md`：自述文件。
 - `UABEANext4.sln`：解决方案文件。
+
+## 快速开始
+
+1. **下载与安装**
+   - [Windows 版本下载](https://nightly.link/HanFengRuYue/UABEANext/workflows/build-windows/master/uabea-windows.zip)
+   - [Linux 版本下载](https://nightly.link/HanFengRuYue/UABEANext/workflows/build-ubuntu/master/uabea-ubuntu.zip)
+
+2. **运行程序**
+   - 解压后直接运行主程序（Windows 下为 `.exe` 文件，Linux 下为可执行文件）。
+
+3. **加载资源**
+   - 打开 Unity 资源文件（如 `.assets`、`.bundle` 等），即可浏览、预览和编辑资源。
+
+4. **插件扩展**
+   - 如需开发自定义插件，请参考 `UABEANext4/Plugins/` 目录下的接口定义与现有插件实现。

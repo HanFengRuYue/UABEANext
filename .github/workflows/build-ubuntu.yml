@@ -12,26 +12,29 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Install .NET Core
-      uses: actions/setup-dotnet@v3
+    - name: Install .NET
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
 
-    - name: Restore
+    - name: Restore dependencies
       run: dotnet restore
 
     - name: Build
       run: dotnet build --configuration Release --no-restore
 
+    - name: Publish
+      run: dotnet publish UABEANext4.Desktop/UABEANext4.Desktop.csproj --configuration Release --no-build --output ./publish
+
     - name: Remove unused platforms
-      run: find UABEANext4.Desktop/bin/Release/net8.0/runtimes/* -maxdepth 0 ! -name linux-x64 -type d -exec rm -r {} +
+      run: find ./publish/runtimes/* -maxdepth 0 ! -name linux-x64 -type d -exec rm -rf {} + 2>/dev/null || true
       
-    - name: Upload
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: uabea-ubuntu
-        path: UABEANext4.Desktop/bin/Release/net8.0
+        path: ./publish
