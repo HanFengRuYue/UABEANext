@@ -36,7 +36,7 @@ public class ImportBatchTextureOption : IUavPluginOption
     {
         var dir = await funcs.ShowOpenFolderDialog(new FolderPickerOpenOptions()
         {
-            Title = "Select import directory"
+            Title = "选择导入目录"
         });
 
         if (dir == null)

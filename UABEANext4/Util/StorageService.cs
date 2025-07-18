@@ -8,13 +8,13 @@ namespace UABEANext4.Util;
 
 internal static class StorageService
 {
-    public static FilePickerFileType All { get; } = new("All")
+    public static FilePickerFileType All { get; } = new("全部")
     {
         Patterns = new[] { "*.*" },
         MimeTypes = new[] { "*/*" }
     };
 
-    public static FilePickerFileType Json { get; } = new("Json")
+    public static FilePickerFileType Json { get; } = new("JSON")
     {
         Patterns = new[] { "*.json" },
         AppleUniformTypeIdentifiers = new[] { "public.json" },

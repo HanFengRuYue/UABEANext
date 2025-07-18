@@ -92,7 +92,7 @@ internal class MainDockFactory : Factory
         };
 
         var windowLayout = CreateRootDock();
-        windowLayout.Title = "Default";
+        windowLayout.Title = "默认";
         windowLayout.IsCollapsable = false;
         windowLayout.VisibleDockables = CreateList<IDockable>(topRightPane);
         windowLayout.ActiveDockable = topRightPane;

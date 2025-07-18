@@ -12,7 +12,7 @@ public class ViewLocator : IDataTemplate
     {
         if (data == null)
         {
-            return new TextBlock { Text = "Null view model" };
+            return new TextBlock { Text = "空视图模型" };
         }
 
         var dataType = data.GetType();
@@ -28,12 +28,12 @@ public class ViewLocator : IDataTemplate
             }
             else
             {
-                return new TextBlock { Text = "Create Instance Failed: " + type.FullName };
+                return new TextBlock { Text = "创建实例失败: " + type.FullName };
             }
         }
         else
         {
-            return new TextBlock { Text = "Not Found: " + name };
+            return new TextBlock { Text = "未找到: " + name };
         }
     }
 

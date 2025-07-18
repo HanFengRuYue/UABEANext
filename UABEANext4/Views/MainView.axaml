@@ -16,6 +16,7 @@
     <Menu Grid.Row="0" Padding="0,6">
       <MenuItem Header="文件">
         <MenuItem Header="打开" Command="{Binding FileOpen}" />
+        <MenuItem Header="打开文件夹" Command="{Binding FolderOpen}" />
         <MenuItem Header="保存" Command="{Binding FileSave}" />
         <MenuItem Header="另存为..." Command="{Binding FileSaveAs}" />
         <!--<MenuItem Header="保存全部" />-->

@@ -20,7 +20,7 @@ public partial class Workspace
     {
         return await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Save file",
+            Title = "保存文件",
             FileTypeChoices = new FilePickerFileType[]
             {
                 new FilePickerFileType("All files (*.*)") { Patterns = new[] { "*" } }

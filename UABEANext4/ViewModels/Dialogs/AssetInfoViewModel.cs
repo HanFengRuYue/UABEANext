@@ -47,7 +47,7 @@ public partial class AssetInfoViewModel : ViewModelBase, IDialogAware
 
     private readonly Workspace _workspace;
 
-    public string Title => "Asset Info";
+    public string Title => "资源信息";
     public int Width => 500;
     public int Height => 450;
 

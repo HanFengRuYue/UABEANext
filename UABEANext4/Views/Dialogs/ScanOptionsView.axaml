@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:UABEANext4.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="300"
+             x:Class="UABEANext4.Views.Dialogs.ScanOptionsView"
+             x:DataType="vm:ScanOptionsViewModel">
+  <Design.DataContext>
+    <vm:ScanOptionsViewModel />
+  </Design.DataContext>
+  <Grid RowDefinitions="*,Auto" Margin="20">
+    <StackPanel Grid.Row="0" Spacing="15">
+      <TextBlock Text="选择扫描选项：" FontWeight="Bold" FontSize="16" />
+      
+      <CheckBox Content="包含子目录" IsChecked="{Binding IncludeSubdirectories}" />
+      <TextBlock Text="扫描选定目录的所有子目录" FontSize="12" Foreground="Gray" Margin="20,0,0,0" />
+      
+      <CheckBox Content="扫描常见Unity目录" IsChecked="{Binding ScanCommonUnityDirectories}" />
+      <TextBlock Text="优先扫描Data、StreamingAssets等Unity常见目录" FontSize="12" Foreground="Gray" Margin="20,0,0,0" />
+      
+      <CheckBox Content="验证文件类型" IsChecked="{Binding ValidateFileTypes}" />
+      <TextBlock Text="通过文件头验证文件是否为有效的Unity文件" FontSize="12" Foreground="Gray" Margin="20,0,0,0" />
+      
+      <CheckBox Content="跳过小文件" IsChecked="{Binding SkipSmallFiles}" />
+      <TextBlock Text="跳过小于32字节的文件（通常不是有效的Unity文件）" FontSize="12" Foreground="Gray" Margin="20,0,0,0" />
+    </StackPanel>
+    
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+      <Button Content="确定" Command="{Binding Confirm}" Width="80" />
+      <Button Content="取消" Command="{Binding Cancel}" Width="80" />
+    </StackPanel>
+  </Grid>
+</UserControl> 

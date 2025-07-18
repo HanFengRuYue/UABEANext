@@ -74,32 +74,41 @@ public class AssetTypeIconConverter : IValueConverter
                 AssetClassID.Texture2D => GetBitmap("UABEANext4/Assets/Icons/asset-texture2d.png"),
                 AssetClassID.Texture3D => GetBitmap("UABEANext4/Assets/Icons/asset-texture2d.png"),
                 AssetClassID.Transform => GetBitmap("UABEANext4/Assets/Icons/asset-transform.png"),
-                _ => GetBitmap("UABEANext4/Assets/Icons/asset-unknown.png"),
+                _ => GetBitmap("UABEANext4/Assets/Icons/asset-unknown.png")
             };
         }
 
-        return new BindingNotification(new InvalidCastException(), BindingErrorType.Error);
+        return GetBitmap("UABEANext4/Assets/Icons/asset-unknown.png");
     }
 
-    Dictionary<string, Bitmap> cache = new();
-
-    private Bitmap GetBitmap(string path)
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        Bitmap? bitmap;
-        if (cache.TryGetValue(path, out bitmap))
-        {
-            return bitmap;
-        }
-        else
-        {
-            bitmap = new Bitmap(AssetLoader.Open(new Uri($"avares://{path}")));
-            cache[path] = bitmap;
-            return bitmap;
-        }
+        return BindingOperations.DoNothing;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    private static Bitmap? GetBitmap(string path)
     {
-        throw new NotImplementedException();
+        var uri = new Uri($"avares://{path}");
+        var assets = AssetLoader.Open(uri);
+        return new Bitmap(assets);
+    }
+}
+
+public class AssetTypeDisplayConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is AssetClassID assetClass)
+        {
+            return assetClass.ToString();
+        }
+        
+        // null值显示为"全部"
+        return "全部";
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return BindingOperations.DoNothing;
     }
 }

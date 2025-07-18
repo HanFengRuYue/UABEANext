@@ -42,7 +42,7 @@ public class ExportAudioOption : IUavPluginOption
     {
         var dir = await funcs.ShowOpenFolderDialog(new FolderPickerOpenOptions()
         {
-            Title = "Select export directory"
+            Title = "选择导出目录"
         });
 
         if (dir == null)
@@ -124,7 +124,7 @@ public class ExportAudioOption : IUavPluginOption
         string extension = GetExtension(compressionFormat);
         var filePath = await funcs.ShowSaveFileDialog(new FilePickerSaveOptions()
         {
-            Title = "Save audioclip",
+            Title = "保存音频片段",
             FileTypeChoices = new List<FilePickerFileType>()
             {
                 new FilePickerFileType($"{extension.ToUpper()} file (*.{extension})") { Patterns = new List<string>() { "*." + extension } }

@@ -17,7 +17,7 @@ public partial class EditDataViewModel : ViewModelBase, IDialogAware<byte[]?>
     private AssetTypeValueField _baseField;
     private RefTypeManager _refMan;
 
-    public string Title => "Edit Data";
+    public string Title => "编辑数据";
     public int Width => 350;
     public int Height => 550;
     public event Action<byte[]?>? RequestClose;
@@ -53,7 +53,7 @@ public partial class EditDataViewModel : ViewModelBase, IDialogAware<byte[]?>
         var data = importer.ImportJsonAsset(_baseField.TemplateField, out string? exceptionMessage);
         if (data == null)
         {
-            await MessageBoxUtil.ShowDialog("Compile Error", "Problem with import:\n" + exceptionMessage);
+            await MessageBoxUtil.ShowDialog("编译错误", "导入时出现问题:\n" + exceptionMessage);
             return;
         }
 

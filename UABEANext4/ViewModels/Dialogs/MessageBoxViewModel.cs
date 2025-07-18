@@ -10,9 +10,9 @@ namespace UABEANext4.ViewModels.Dialogs;
 public partial class MessageBoxViewModel : ViewModelBase, IDialogAware<MessageBoxResult?>
 {
     [ObservableProperty]
-    public string _msgTitle = "Message box title";
+    public string _msgTitle = "消息框标题";
     [ObservableProperty]
-    public string _msgText = "Message box text";
+    public string _msgText = "消息框文本";
     [ObservableProperty]
     public MessageBoxType _msgType = MessageBoxType.OKCancel;
     [ObservableProperty]

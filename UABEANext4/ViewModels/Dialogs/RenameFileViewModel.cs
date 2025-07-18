@@ -8,7 +8,7 @@ public partial class RenameFileViewModel : ViewModelBase, IDialogAware<string?>
     [ObservableProperty]
     public string _newName;
 
-    public string Title => "Rename File";
+    public string Title => "重命名文件";
     public int Width => 350;
     public int Height => 80;
     public event Action<string?>? RequestClose;

@@ -12,7 +12,7 @@ using UABEANext4.Plugins;
 namespace UABEANext4.ViewModels.Tools;
 public partial class PreviewerToolViewModel : Tool
 {
-    const string TOOL_TITLE = "Previewer";
+    const string TOOL_TITLE = "预览器";
 
     public Workspace Workspace { get; }
 
@@ -49,7 +49,7 @@ public partial class PreviewerToolViewModel : Tool
         Title = TOOL_TITLE;
 
         _activeImage = null;
-        _activeDocument = new TextDocument("No preview available.");
+        _activeDocument = new TextDocument("无可用预览。");
 
         WeakReferenceMessenger.Default.Register<AssetsSelectedMessage>(this, OnAssetsSelected);
         WeakReferenceMessenger.Default.Register<WorkspaceClosingMessage>(this, OnWorkspaceClosing);
@@ -83,7 +83,7 @@ public partial class PreviewerToolViewModel : Tool
         var pluginsList = Workspace.Plugins.GetPreviewersThatSupport(Workspace, asset);
         if (pluginsList == null || pluginsList.Count == 0)
         {
-            SetDisplayText("No preview available.");
+            SetDisplayText("无可用预览。");
             return;
         }
 
@@ -141,7 +141,7 @@ public partial class PreviewerToolViewModel : Tool
             }
             default:
             {
-                SetDisplayText($"Preview type {prevType} not supported.");
+                SetDisplayText($"不支持的预览类型 {prevType}。");
                 break;
             }
         }

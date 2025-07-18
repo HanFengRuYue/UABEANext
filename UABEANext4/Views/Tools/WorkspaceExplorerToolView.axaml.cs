@@ -23,6 +23,7 @@ public partial class WorkspaceExplorerToolView : UserControl
             return;
 
         var selectionEventArgs = e as SelectionChangedEventArgs;
+        if (selectionEventArgs == null) return;
         var selectionActuallyChanged = selectionEventArgs.AddedItems.Count > 0 || selectionEventArgs.RemovedItems.Count > 0;
         if (selectionActuallyChanged)
         {

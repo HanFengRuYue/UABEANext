@@ -25,7 +25,7 @@ public partial class AddExternalViewModel : ViewModelBaseValidator, IDialogAware
     public bool HasOriginalName => FileName.StartsWith("Resources/");
     public bool HasGuid => ExternalType != AssetsFileExternalType.Normal;
 
-    public string Title => "Edit External";
+    public string Title => "编辑外部引用";
     public int Width => 350;
     public int Height => 170;
     public event Action<AssetsFileExternal?>? RequestClose;
@@ -45,7 +45,7 @@ public partial class AddExternalViewModel : ViewModelBaseValidator, IDialogAware
     {
         if (!GUID128.TryParse(guidString, out GUID128 _))
         {
-            return new("GUID is invalid");
+            return new("GUID 无效");
         }
 
         return ValidationResult.Success;
@@ -80,7 +80,7 @@ public partial class AddExternalViewModel : ViewModelBaseValidator, IDialogAware
 
     private async Task ShowInvalidOptionsBox()
     {
-        await MessageBoxUtil.ShowDialog("Error", "Invalid options provided.");
+        await MessageBoxUtil.ShowDialog("错误", "提供的选项无效。");
     }
 
     public void BtnCancel_Click()

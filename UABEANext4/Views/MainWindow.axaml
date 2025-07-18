@@ -23,14 +23,16 @@
   </Design.DataContext>
 
   <Panel Margin="{Binding #MainWindowName.OffScreenMargin}">
-    <Panel Height="30" HorizontalAlignment="Center" VerticalAlignment="Top">
+    <Panel Height="35" HorizontalAlignment="Center" VerticalAlignment="Top">
       <Label Content="{Binding Path=Title, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=Window}}"
-             Margin="4,8,4,0"
+             Margin="4,6,4,6"
              FontSize="14"
              FontWeight="Normal"
-             FontFamily="Consolas,Monospace,Courier,DejaVu Sans Mono,Roboto Mono"
+             FontFamily="Microsoft YaHei,Segoe UI,Arial"
              VerticalAlignment="Center"
              VerticalContentAlignment="Center"
+             HorizontalAlignment="Center"
+             HorizontalContentAlignment="Center"
              IsHitTestVisible="False"
              IsVisible="{Binding UsesChrome}"/>
     </Panel>

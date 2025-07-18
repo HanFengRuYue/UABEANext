@@ -17,7 +17,7 @@ using UABEANext4.Logic.Hierarchy;
 namespace UABEANext4.ViewModels.Tools;
 public partial class HierarchyToolViewModel : Tool
 {
-    const string TOOL_TITLE = "Hierarchy";
+    const string TOOL_TITLE = "层级视图";
 
     public Workspace Workspace { get; }
 

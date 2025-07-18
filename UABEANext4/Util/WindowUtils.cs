@@ -14,6 +14,6 @@ public class WindowUtils
             return window;
         }
 
-        throw new Exception("Window not found!");
+        throw new Exception("未找到窗口！");
     }
 }

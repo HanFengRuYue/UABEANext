@@ -8,7 +8,7 @@ public partial class VersionSelectViewModel : ViewModelBase, IDialogAware<string
     [ObservableProperty]
     public string _version = "0.0.0f0";
 
-    public string Title => "Version Select";
+    public string Title => "版本选择";
     public int Width => 300;
     public int Height => 140;
     public event Action<string?>? RequestClose;

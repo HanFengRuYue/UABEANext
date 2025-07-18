@@ -9,7 +9,7 @@ using UABEANext4.Logic;
 namespace UABEANext4.ViewModels.Tools;
 public partial class InspectorToolViewModel : Tool
 {
-    const string TOOL_TITLE = "Inspector";
+    const string TOOL_TITLE = "检查器";
 
     public Workspace Workspace { get; }
 

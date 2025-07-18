@@ -38,7 +38,7 @@ public partial class AddAssetViewModel : ViewModelBaseValidator, IDialogAware<Ad
     [ObservableProperty]
     public bool _isScript = false;
 
-    public string Title => "Add Asset";
+    public string Title => "添加资源";
     public int Width => 300;
     public int Height => 170;
     public event Action<AddAssetResult?>? RequestClose;
@@ -72,23 +72,23 @@ public partial class AddAssetViewModel : ViewModelBaseValidator, IDialogAware<Ad
     {
         if (context.ObjectInstance is not AddAssetViewModel vm)
         {
-            throw new Exception("View model not found");
+            throw new Exception("未找到视图模型");
         }
 
         if (!long.TryParse(pathIdStr, out var pathId))
         {
-            return new("Path ID must be a long");
+            return new("路径ID必须是长整型");
         }
 
         if (pathId == 0)
         {
-            return new("Zero is not a valid path ID");
+            return new("零不是有效的路径ID");
         }
 
         var info = vm.SelectedFile?.file.GetAssetInfo(pathId);
         if (info != null)
         {
-            return new("Path ID already exists in file");
+            return new("路径ID在文件中已存在");
         }
 
         return ValidationResult.Success;
@@ -98,12 +98,12 @@ public partial class AddAssetViewModel : ViewModelBaseValidator, IDialogAware<Ad
     {
         if (context.ObjectInstance is not AddAssetViewModel vm)
         {
-            throw new Exception("View model not found");
+            throw new Exception("未找到视图模型");
         }
 
         if (!vm.TryParseTypeId(typeStr, false, out _, out _))
         {
-            return new("Class ID must be an int or a valid class name");
+            return new("类ID必须是整数或有效的类名");
         }
 
         return ValidationResult.Success;
@@ -286,7 +286,7 @@ public partial class AddAssetViewModel : ViewModelBaseValidator, IDialogAware<Ad
 
     private async Task ShowInvalidOptionsBox()
     {
-        await MessageBoxUtil.ShowDialog("Error", "Invalid options provided.");
+        await MessageBoxUtil.ShowDialog("错误", "提供的选项无效。");
     }
 
     public void BtnCancel_Click()

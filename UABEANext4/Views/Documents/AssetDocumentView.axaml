@@ -11,11 +11,14 @@
   <Grid>
     <Grid.Resources>
       <uac:AssetTypeIconConverter x:Key="AssetTypeIconConverter" />
+      <uac:AssetTypeDisplayConverter x:Key="AssetTypeDisplayConverter" />
     </Grid.Resources>
     <Grid.RowDefinitions>
       <RowDefinition Height="25"/>
       <RowDefinition Height="26"/>
+      <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
+      <RowDefinition Height="22"/>
     </Grid.RowDefinitions>
 
     <UniformGrid Grid.Row="0" Rows="1" HorizontalAlignment="Left">
@@ -58,15 +61,6 @@
               </ControlTheme>
             </MenuFlyout.ItemContainerTheme>
           </MenuFlyout>
-          <!--<MenuFlyout>
-            <ItemsControl ItemsSource="{Binding PluginsItems}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <MenuItem Header="{Binding}" Command="{Binding $parent[UserControl].((docs:AssetDocumentViewModel)DataContext).PluginItemClicked}" CommandParameter="{Binding}" />
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </MenuFlyout>-->
         </Button.Flyout>
       </Button>
       <Button MaxWidth="100" Command="{Binding AddAsset}">
@@ -81,6 +75,13 @@
           <TextBlock>删除</TextBlock>
         </StackPanel>
       </Button>
+      <!-- 新增过滤按钮 -->
+      <Button MaxWidth="100" Command="{Binding ToggleFilterPanelCommand}">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="⚙" Margin="0,0,3,0" />
+          <TextBlock>过滤</TextBlock>
+        </StackPanel>
+      </Button>
     </UniformGrid>
 
     <Grid Grid.Row="1" ColumnDefinitions="80,10,*">
@@ -88,8 +89,47 @@
       <TextBox Grid.Column="2" Text="{Binding SearchText}" />
     </Grid>
 
+    <!-- 过滤面板 -->
+    <Border Grid.Row="2" Background="#232323" Padding="8,4" CornerRadius="4" IsVisible="{Binding IsFilterPanelVisible}">
+      <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+        <!-- 类型 -->
+        <StackPanel Orientation="Vertical" Spacing="2" Width="160">
+          <TextBlock Text="类型" FontSize="12" Foreground="#aaa" Margin="0,0,0,2" />
+          <StackPanel Orientation="Vertical" Spacing="4">
+            <TextBox Text="{Binding TypeSearchText}" Watermark="搜索类型..." Height="24" FontSize="11"/>
+            <ComboBox ItemsSource="{Binding FilteredAssetTypes}" SelectedItem="{Binding SelectedAssetType}" Height="28">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Converter={StaticResource AssetTypeDisplayConverter}}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+        </StackPanel>
+        <!-- 文件名 -->
+        <StackPanel Orientation="Vertical" Spacing="2" Width="140">
+          <TextBlock Text="文件名" FontSize="12" Foreground="#aaa" Margin="0,0,0,2" />
+          <TextBox Text="{Binding SelectedFileName}" Height="28"/>
+          <Button Content="清除过滤" Command="{Binding ClearAllFiltersCommand}" Height="28" Margin="0,4,0,0" />
+        </StackPanel>
+        <!-- 修改状态 -->
+        <StackPanel Orientation="Vertical" Spacing="2" Width="120">
+          <TextBlock Text="修改状态" FontSize="12" Foreground="#aaa" Margin="0,0,0,2" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <CheckBox Content="已修改" IsChecked="{Binding ShowModifiedOnly}"/>
+            <CheckBox Content="未修改" IsChecked="{Binding ShowUnmodifiedOnly}"/>
+          </StackPanel>
+        </StackPanel>
+        <!-- 文件大小 -->
+        <StackPanel Orientation="Vertical" Spacing="2" Width="140">
+          <TextBlock Text="文件大小" FontSize="12" Foreground="#aaa" Margin="0,0,0,2" />
+          <TextBox Text="{Binding SizeFilterText}" Watermark="如: 1000 或 1000-5000" Height="28"/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
     <DataGrid
-      Grid.Row="2" AutoGenerateColumns="False" CanUserResizeColumns="True"
+      Grid.Row="3" AutoGenerateColumns="False" CanUserResizeColumns="True"
       IsReadOnly="True" ItemsSource="{Binding CollectionView}" x:DataType="docs:AssetDocumentViewModel"
       SelectionChanged="DataGrid_SelectionChanged" Margin="0,0,0,0" Name="dataGrid">
       <DataGrid.RowTheme>
@@ -111,14 +151,24 @@
         </DataGridTemplateColumn>
         
         <DataGridTextColumn Header="名称" Width="150" Binding="{Binding DisplayName}" x:DataType="ws:AssetInst"/>
-        <!--<DataGridTextColumn Header="容器" Binding="{Binding Container}" x:DataType="ws:AssetInst"/>-->
         <DataGridTextColumn Header="类型" Width="120" Binding="{Binding Type}" x:DataType="ws:AssetInst"/>
         <DataGridTextColumn Header="文件名" Width="120" Binding="{Binding FileName}" x:DataType="ws:AssetInst"/>
         <DataGridTextColumn Header="路径ID" Width="130" Binding="{Binding PathId}" x:DataType="ws:AssetInst"/>
-        <!--<DataGridTextColumn Header="偏移" Binding="{Binding ByteStart}" x:DataType="ws:AssetInst"/>-->
         <DataGridTextColumn Header="大小" Width="80" Binding="{Binding ByteSizeModified}" x:DataType="ws:AssetInst"/>
         <DataGridTextColumn Header="已修改" Binding="{Binding ModifiedString}" x:DataType="ws:AssetInst"/>
       </DataGrid.Columns>
     </DataGrid>
+
+    <!-- 状态栏显示项目计数 -->
+    <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Background="#2D2D2D">
+      <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="5,0" Foreground="#E0E0E0">
+        <Run Text="总计: " />
+        <Run Text="{Binding TotalItems}" FontWeight="Bold" />
+        <Run Text=" 项" />
+        <Run Text=" | 过滤后: " />
+        <Run Text="{Binding FilteredItems}" FontWeight="Bold" />
+        <Run Text=" 项" />
+      </TextBlock>
+    </Grid>
   </Grid>
 </UserControl>

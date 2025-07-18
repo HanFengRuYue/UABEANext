@@ -24,7 +24,7 @@ public partial class BatchImportViewModel : ViewModelBase, IDialogAware<List<Imp
     [ObservableProperty]
     public int _matchingFilesSelectedIndex;
 
-    public string Title => "Batch Import";
+    public string Title => "批量导入";
     public int Width => 700;
     public int Height => 350;
     public event Action<List<ImportBatchInfo>?>? RequestClose;

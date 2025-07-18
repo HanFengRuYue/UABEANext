@@ -13,7 +13,7 @@ public partial class ExportBatchOptionsViewModel : ViewModelBase, IDialogAware<E
 
     public List<string> DropdownItems { get; }
 
-    public string Title => "Texture Batch Export";
+    public string Title => "纹理批量导出";
     public int Width => 300;
     public int Height => 130;
     public event Action<ExportBatchOptionsResult?>? RequestClose;

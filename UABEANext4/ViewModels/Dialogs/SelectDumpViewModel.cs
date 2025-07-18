@@ -11,7 +11,7 @@ public partial class SelectDumpViewModel : ViewModelBase, IDialogAware<SelectedD
 
     public List<string> DropdownItems { get; }
 
-    public string Title => "Batch Import";
+    public string Title => "批量导入";
     public int Width => 300;
     public int Height => 80;
     public event Action<SelectedDumpType?>? RequestClose;
@@ -20,13 +20,13 @@ public partial class SelectDumpViewModel : ViewModelBase, IDialogAware<SelectedD
     {
         SelectedItem = SelectedDumpType.JsonDump;
 
-        DropdownItems =
-        [
-            "UABEA json dump",
-            "UABE text dump",
-            "Raw dump",
-            "Any"
-        ];
+        DropdownItems = new List<string>
+        {
+            "UABEA JSON 转储",
+            "UABE 文本转储",
+            "原始转储",
+            "任意"
+        };
 
         if (hideAnyOption)
         {

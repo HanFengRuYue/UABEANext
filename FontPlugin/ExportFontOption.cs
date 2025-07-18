@@ -39,7 +39,7 @@ public class ExportFontOption : IUavPluginOption
     {
         var dir = await funcs.ShowOpenFolderDialog(new FolderPickerOpenOptions()
         {
-            Title = "Select export directory"
+            Title = "选择导出目录"
         });
 
         if (dir == null)
@@ -99,7 +99,7 @@ public class ExportFontOption : IUavPluginOption
         string assetName = PathUtils.ReplaceInvalidPathChars(name);
         var filePath = await funcs.ShowSaveFileDialog(new FilePickerSaveOptions()
         {
-            Title = "Save font",
+            Title = "保存字体",
             FileTypeChoices = new List<FilePickerFileType>()
             {
                 new FilePickerFileType($"{extension.ToUpper()} file (*.{extension})") { Patterns = new List<string>() { "*." + extension } },

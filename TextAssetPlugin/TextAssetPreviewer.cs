@@ -4,6 +4,7 @@ using System.Text;
 using UABEANext4.AssetWorkspace;
 using UABEANext4.Logic.Mesh;
 using UABEANext4.Plugins;
+using System.Linq;
 
 namespace TextAssetPlugin;
 public class TextAssetPreviewer : IUavPluginPreviewer
@@ -35,14 +36,38 @@ public class TextAssetPreviewer : IUavPluginPreviewer
 
             var text = textAssetBf["m_Script"].AsByteArray;
             string trimmedText;
-            if (text.Length <= TEXT_ASSET_MAX_LENGTH)
+
+            Encoding[] encodingsToTry = new Encoding[]
             {
-                trimmedText = Encoding.UTF8.GetString(text);
+                Encoding.UTF8,
+                Encoding.Unicode,      // UTF-16 LE
+                Encoding.BigEndianUnicode, // UTF-16 BE
+                Encoding.GetEncoding("shift_jis")
+            };
+
+            string? decoded = null;
+            foreach (var enc in encodingsToTry)
+            {
+                try
+                {
+                    var candidate = enc.GetString(text);
+                    // 如果解码后包含大量替换字符，则认为失败
+                    if (candidate.Count(c => c == '\uFFFD') < 10)
+                    {
+                        decoded = candidate;
+                        break;
+                    }
+                }
+                catch { }
             }
+
+            if (decoded == null)
+                decoded = Encoding.UTF8.GetString(text); // 兜底
+
+            if (decoded.Length > TEXT_ASSET_MAX_LENGTH)
+                trimmedText = decoded.Substring(0, TEXT_ASSET_MAX_LENGTH) + $"... (and {text.Length - TEXT_ASSET_MAX_LENGTH} bytes more)";
             else
-            {
-                trimmedText = Encoding.UTF8.GetString(text[..TEXT_ASSET_MAX_LENGTH]) + $"... (and {text.Length - TEXT_ASSET_MAX_LENGTH} bytes more)";
-            }
+                trimmedText = decoded;
 
             error = null;
             return trimmedText;

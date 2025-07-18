@@ -68,8 +68,12 @@ public partial class MainViewModel : ViewModelBase
         {
             Workspace.ModifyMutex.WaitOne();
             Workspace.ProgressValue = 0;
+            Workspace.ProgressText = "开始加载文件...";
             int startLoadOrder = Workspace.NextLoadIndex;
             int currentCount = 0;
+            int successCount = 0;
+            int skipCount = 0;
+            
             Parallel.ForEach(enumerable, options, (fileName, state, index) =>
             {
                 if (fileName is not null)
@@ -79,18 +83,21 @@ public partial class MainViewModel : ViewModelBase
                         var fileStream = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                         var file = Workspace.LoadAnyFile(fileStream, startLoadOrder + (int)index);
                         var currentCountNow = Interlocked.Increment(ref currentCount);
+                        var successCountNow = Interlocked.Increment(ref successCount);
                         var currentProgress = currentCountNow / (float)totalCount;
-                        Workspace.SetProgressThreadSafe(currentProgress, "Loaded " + Path.GetFileName(fileName));
+                        Workspace.SetProgressThreadSafe(currentProgress, $"已加载 {successCountNow}/{totalCount} - {Path.GetFileName(fileName)}");
                     }
                     catch
                     {
                         var currentCountNow = Interlocked.Increment(ref currentCount);
+                        var skipCountNow = Interlocked.Increment(ref skipCount);
                         var currentProgress = currentCountNow / (float)totalCount;
-                        Workspace.SetProgressThreadSafe(currentProgress, "Skipping " + Path.GetFileName(fileName));
+                        Workspace.SetProgressThreadSafe(currentProgress, $"跳过 {skipCountNow} 个文件 - {Path.GetFileName(fileName)}");
                     }
                 }
             });
-            Workspace.SetProgressThreadSafe(1f, "Done");
+            
+            Workspace.SetProgressThreadSafe(1f, $"完成！成功加载 {successCount} 个文件，跳过 {skipCount} 个文件");
             Workspace.ModifyMutex.ReleaseMutex();
         });
 
@@ -144,16 +151,72 @@ public partial class MainViewModel : ViewModelBase
 
         var result = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Open a file",
+            Title = "打开文件",
             FileTypeFilter = new FilePickerFileType[]
             {
-                new FilePickerFileType("All files (*.*)") { Patterns = new[] { "*" } }
+                new FilePickerFileType("所有文件 (*.*)") { Patterns = new[] { "*" } }
             },
             AllowMultiple = true
         });
 
         var fileNames = FileDialogUtils.GetOpenFileDialogFiles(result);
         await OpenFiles(fileNames);
+    }
+
+    public async void FolderOpen()
+    {
+        var storageProvider = StorageService.GetStorageProvider();
+        if (storageProvider is null)
+        {
+            return;
+        }
+
+        var result = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "选择游戏目录",
+            AllowMultiple = false
+        });
+
+        var folders = FileDialogUtils.GetOpenFolderDialogFolders(result);
+        if (folders.Length == 0)
+        {
+            return;
+        }
+
+        // 直接用默认参数（全部开启）
+        var scanOptions = new ScanOptions
+        {
+            IncludeSubdirectories = true,
+            ScanCommonUnityDirectories = true,
+            ValidateFileTypes = true,
+            SkipSmallFiles = true
+        };
+        await ScanDirectory(folders[0], scanOptions);
+    }
+
+    private async Task ScanDirectory(string directoryPath, ScanOptions options)
+    {
+        if (!Directory.Exists(directoryPath))
+        {
+            return;
+        }
+
+        // 显示扫描进度
+        Workspace.ProgressValue = 0;
+        Workspace.ProgressText = "正在扫描游戏目录...";
+
+        // 使用新的文件扫描工具，带进度回调和选项
+        var supportedFiles = await Task.Run(() => FileUtils.ScanUnityGameDirectory(directoryPath, 
+            progress => Workspace.SetProgressThreadSafe(Workspace.ProgressValue, progress), options));
+
+        if (supportedFiles.Count == 0)
+        {
+            Workspace.ProgressText = "未找到可处理的Unity文件";
+            return;
+        }
+
+        Workspace.ProgressText = $"找到 {supportedFiles.Count} 个可处理的文件，开始加载...";
+        await OpenFiles(supportedFiles);
     }
 
     private async Task DoSaveOverwrite(IEnumerable<WorkspaceItem> items)
@@ -172,9 +235,17 @@ public partial class MainViewModel : ViewModelBase
                 rootItems.Add(rootItem);
             }
 
+            // 新增：只保存被修改过的文件
+            var itemsToSave = rootItems.Where(i => Workspace.UnsavedItems.Contains(i)).ToList();
+            if (itemsToSave.Count == 0)
+            {
+                Workspace.SetProgressThreadSafe(1f, "没有需要保存的文件");
+                return;
+            }
+
             var fileInstsToReload = new HashSet<AssetsFileInstance>();
             var someFailed = false;
-            foreach (var item in rootItems)
+            foreach (var item in itemsToSave)
             {
                 var success = await Workspace.Save(item);
                 if (!success)
@@ -202,17 +273,17 @@ public partial class MainViewModel : ViewModelBase
             if (fileInstsToReload.Count == 0)
             {
                 if (someFailed)
-                    Workspace.SetProgressThreadSafe(1f, "All files failed to save (check if you have write access?)");
+                    Workspace.SetProgressThreadSafe(1f, "所有文件保存失败（检查是否有写入权限？）");
                 else
-                    Workspace.SetProgressThreadSafe(1f, "No files open to save");
+                    Workspace.SetProgressThreadSafe(1f, "没有打开的文件可保存");
             }
             else
             {
                 await ReloadAssetDocuments(fileInstsToReload);
                 if (someFailed)
-                    Workspace.SetProgressThreadSafe(1f, "Saved (some failed), with open saved files reloaded");
+                    Workspace.SetProgressThreadSafe(1f, "已保存（部分失败），已重新加载已保存的打开文件");
                 else
-                    Workspace.SetProgressThreadSafe(1f, "Saved, with open saved files reloaded");
+                    Workspace.SetProgressThreadSafe(1f, "已保存，已重新加载已保存的打开文件");
             }
         }
         finally
@@ -242,7 +313,7 @@ public partial class MainViewModel : ViewModelBase
                 await Workspace.SaveAs(item);
             }
 
-            Workspace.SetProgressThreadSafe(1f, "Saved");
+            Workspace.SetProgressThreadSafe(1f, "已保存");
         }
         finally
         {
@@ -367,7 +438,7 @@ public partial class MainViewModel : ViewModelBase
 
             document = new AssetDocumentViewModel(Workspace)
             {
-                Title = $"{mainFileInst.name} and {assetsFileItems.Count - 1} other files"
+                Title = $"{mainFileInst.name} 和 {assetsFileItems.Count - 1} 个其他文件"
             };
 
             _lastLoadedFiles = assetsFileItems!;
